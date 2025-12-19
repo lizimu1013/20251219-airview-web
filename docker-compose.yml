@@ -1,0 +1,13 @@
+services:
+  urm:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_PATH: data/urm.sqlite
+      JWT_SECRET: change-me
+      ADMIN_PASSWORD: admin123
+    volumes:
+      - ./data:/app/data
+

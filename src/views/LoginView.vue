@@ -12,9 +12,11 @@ const router = useRouter()
 const form = reactive({
   username: '',
   password: '',
+  name: '',
 })
 
-const redirectTo = computed(() => (typeof route.query.redirect === 'string' ? route.query.redirect : '/requests'))
+const redirectTo = computed(() => (typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'))
+const isRegister = computed(() => route.query.mode === 'register')
 
 async function onLogin() {
   try {
@@ -24,6 +26,26 @@ async function onLogin() {
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '登录失败')
   }
+}
+
+async function onRegister() {
+  try {
+    await auth.register(form.username.trim(), form.password, form.name.trim())
+    ElMessage.success('注册并登录成功')
+    router.replace(redirectTo.value)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '注册失败')
+  }
+}
+
+function switchMode() {
+  const q = { ...route.query }
+  if (isRegister.value) {
+    delete q.mode
+  } else {
+    q.mode = 'register'
+  }
+  router.replace({ path: '/login', query: q })
 }
 </script>
 
@@ -37,17 +59,23 @@ async function onLogin() {
       <!-- <div class="subtitle">多用户版本（后端 + 数据库）</div> -->
 
       <el-form label-position="top" @submit.prevent>
-        <el-form-item label="用户名">
-          <el-input v-model="form.username" autocomplete="username" placeholder="例如：admin" />
+        <el-form-item label="工号 / 账号">
+          <el-input v-model="form.username" autocomplete="username" placeholder="例如：l00826434" />
+        </el-form-item>
+        <el-form-item v-if="isRegister" label="姓名">
+          <el-input v-model="form.name" autocomplete="name" placeholder="请输入姓名" />
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" autocomplete="current-password" show-password />
         </el-form-item>
-        <el-button type="primary" style="width: 100%" @click="onLogin">登录</el-button>
+        <el-button v-if="!isRegister" type="primary" style="width: 100%" @click="onLogin">登录</el-button>
+        <el-button v-else type="primary" style="width: 100%" @click="onRegister">注册并登录</el-button>
       </el-form>
 
       <div class="hint text-muted">
-        <!-- 默认会自动种子一个管理员：<span class="mono">admin / admin123</span>（请上线前通过环境变量/用户管理修改） -->
+        <el-link type="primary" :underline="false" @click="switchMode">
+          {{ isRegister ? '返回登录' : '没有账号？去注册' }}
+        </el-link>
       </div>
     </div>
   </div>

@@ -41,12 +41,22 @@ export const useAuthStore = defineStore('auth', () => {
     setToken(res.token)
   }
 
+  async function register(username: string, password: string, name: string) {
+    const res = await apiRequest<LoginResponse>('/api/auth/register', {
+      method: 'POST',
+      body: { username, password, name },
+      auth: false,
+    })
+    token.value = res.token
+    user.value = res.user
+    setToken(res.token)
+  }
+
   function logout() {
     token.value = ''
     user.value = null
     clearToken()
   }
 
-  return { token, user, role, ready, isAuthed, init, login, logout }
+  return { token, user, role, ready, isAuthed, init, login, register, logout }
 })
-

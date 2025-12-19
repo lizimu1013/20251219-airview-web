@@ -115,6 +115,42 @@ app.post('/api/auth/login', (req, res) => {
   })
 })
 
+app.post('/api/auth/register', (req, res) => {
+  const { username, password, name } = req.body || {}
+  const uname = String(username || '').trim()
+  const pwd = String(password || '')
+  const realName = String(name || '').trim()
+
+  if (!uname || !pwd || !realName) return res.status(400).json({ message: 'missing fields' })
+  if (!/^[A-Za-z0-9._-]{3,50}$/.test(uname)) return res.status(400).json({ message: '用户名格式不合法' })
+  if (pwd.length < 6) return res.status(400).json({ message: '密码长度至少 6 位' })
+  if (realName.length < 2) return res.status(400).json({ message: '姓名格式不合法' })
+
+  const t = nowIso()
+  const user = {
+    id: nanoid(),
+    username: uname,
+    name: realName,
+    role: 'requester',
+    passwordHash: bcrypt.hashSync(pwd, 10),
+    createdAt: t,
+  }
+
+  try {
+    db.prepare(
+      'INSERT INTO users (id, username, name, role, passwordHash, createdAt) VALUES (@id, @username, @name, @role, @passwordHash, @createdAt)',
+    ).run(user)
+  } catch (e) {
+    return res.status(400).json({ message: '用户名已存在' })
+  }
+
+  const token = signToken({ id: user.id, role: user.role, name: user.name, username: user.username })
+  return res.json({
+    token,
+    user: { id: user.id, username: user.username, name: user.name, role: user.role, createdAt: user.createdAt },
+  })
+})
+
 app.get('/api/me', authMiddleware, (req, res) => {
   const u = getUserById(req.user.id)
   if (!u) return res.status(401).json({ message: 'Unauthorized' })

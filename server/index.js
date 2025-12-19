@@ -422,6 +422,12 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   if (body.tags !== undefined) patch.tagsJson = JSON.stringify(jsonArray(body.tags))
   if (body.links !== undefined) patch.linksJson = JSON.stringify(jsonArray(body.links))
   if (body.impactScope !== undefined) patch.impactScope = body.impactScope ? String(body.impactScope) : null
+  if (body.createdAt != null) {
+    if (user.role !== 'admin') return res.status(403).json({ message: 'forbidden' })
+    const t = new Date(String(body.createdAt))
+    if (Number.isNaN(t.getTime())) return res.status(400).json({ message: 'invalid createdAt' })
+    patch.createdAt = t.toISOString()
+  }
 
   if (patch.title === '') return res.status(400).json({ message: 'title required' })
   if (patch.description != null && !String(patch.description).trim()) return res.status(400).json({ message: 'description required' })
@@ -434,7 +440,8 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
 
   const setSql = fields.map((f) => `${f}=@${f}`).join(', ')
   db.prepare(`UPDATE requests SET ${setSql} WHERE id=@id`).run({ id, ...patch })
-  addAudit({ requestId: id, actorId: user.id, actionType: 'edit', note: '编辑需求字段', fromValue: { status: current.status }, toValue: { status: current.status } })
+  const note = patch.createdAt ? '编辑需求字段（含提交时间）' : '编辑需求字段'
+  addAudit({ requestId: id, actorId: user.id, actionType: 'edit', note, fromValue: { status: current.status }, toValue: { status: current.status } })
   return res.json({ ok: true })
 })
 

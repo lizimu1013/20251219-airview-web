@@ -26,6 +26,10 @@ const props = withDefaults(
 
 const rootEl = ref<HTMLDivElement | null>(null)
 let chart: echarts.ECharts | null = null
+let rafId = 0
+let enterRaf = 0
+let hasSetInitial = false
+const ENTER_DURATION = 400
 
 const heightStyle = computed(() => (typeof props.height === 'number' ? `${props.height}px` : props.height))
 
@@ -42,6 +46,7 @@ function withAlpha(color: string, alpha: number) {
 
 function buildOption(): EChartsOption {
   const fallbackColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
+  const showSymbols = props.labels.length <= 31
 
   const series = props.series.map((s, idx) => {
     const color = s.color ?? fallbackColors[idx % fallbackColors.length]
@@ -49,7 +54,15 @@ function buildOption(): EChartsOption {
       name: s.name,
       type: 'line' as const,
       smooth: true,
-      showSymbol: false,
+      showSymbol: showSymbols,
+      symbol: 'circle',
+      symbolSize: 6,
+      animationDuration: 1400,
+      animationEasing: 'cubicOut' as const,
+      animationDelay: (dataIndex: number) => dataIndex * 35 + idx * 120,
+      animationDurationUpdate: 700,
+      animationEasingUpdate: 'cubicOut' as const,
+      animationDelayUpdate: (dataIndex: number) => dataIndex * 12 + idx * 60,
       lineStyle: { width: 2, color },
       itemStyle: { color },
       areaStyle: {
@@ -63,6 +76,11 @@ function buildOption(): EChartsOption {
   })
 
   return {
+    animation: true,
+    animationDuration: 1400,
+    animationEasing: 'cubicOut' as const,
+    animationDurationUpdate: 700,
+    animationEasingUpdate: 'cubicOut' as const,
     tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
     legend: { show: props.series.length > 1, top: 0 },
     grid: { left: 12, right: 18, top: props.series.length > 1 ? 26 : 14, bottom: 8, containLabel: true },
@@ -85,14 +103,83 @@ function buildOption(): EChartsOption {
   }
 }
 
+function playEnterAnimation(option: EChartsOption) {
+  if (!chart) return
+  if (enterRaf) {
+    cancelAnimationFrame(enterRaf)
+    enterRaf = 0
+  }
+  const seriesData = Array.isArray(option.series)
+    ? option.series.map((s) => (Array.isArray(s.data) ? [...s.data] : []))
+    : []
+  const maxLen = Math.max(0, ...seriesData.map((a) => a.length))
+  if (!maxLen) {
+    chart.clear()
+    chart.setOption(option, { notMerge: true, lazyUpdate: false })
+    hasSetInitial = true
+    return
+  }
+
+  const buildPartialSeries = (visibleFloat: number) =>
+    Array.isArray(option.series)
+      ? option.series.map((s, idx) => {
+          const data = seriesData[idx]
+          const lastFull = Math.floor(visibleFloat)
+          const frac = visibleFloat - lastFull
+          const partial = data.map((v, i) => {
+            if (i < lastFull) return v
+            if (i === lastFull) return v
+            if (i === lastFull + 1 && frac > 0) {
+              const prev = data[lastFull]
+              const next = data[lastFull + 1] ?? prev
+              return prev + (next - prev) * frac
+            }
+            return null
+          })
+          return { ...s, animation: false, data: partial }
+        })
+      : []
+
+  chart.clear()
+  chart.setOption({ ...option, animation: false, series: buildPartialSeries(0) }, { notMerge: true, lazyUpdate: false })
+
+  const start = performance.now()
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - start) / ENTER_DURATION)
+    const eased = 1 - Math.pow(1 - progress, 2)
+    const visible = eased * (maxLen - 1)
+    chart?.setOption({ series: buildPartialSeries(visible) }, { notMerge: false, lazyUpdate: false })
+    if (progress < 1) {
+      enterRaf = requestAnimationFrame(tick)
+    } else {
+      chart?.setOption(option, { notMerge: true, lazyUpdate: false })
+      hasSetInitial = true
+      enterRaf = 0
+    }
+  }
+  enterRaf = requestAnimationFrame(tick)
+}
+
 function render() {
   if (!chart) return
-  chart.setOption(buildOption(), true)
+  if (rafId) cancelAnimationFrame(rafId)
+  rafId = requestAnimationFrame(() => {
+    rafId = 0
+    if (!chart) return
+    chart.resize()
+    const option = buildOption()
+    if (!hasSetInitial) {
+      playEnterAnimation(option)
+      return
+    }
+    chart.setOption(option, { notMerge: false, lazyUpdate: false })
+  })
 }
 
 onMounted(() => {
   if (!rootEl.value) return
   chart = echarts.init(rootEl.value)
+  hasSetInitial = false
   render()
 })
 
@@ -105,6 +192,8 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (rafId) cancelAnimationFrame(rafId)
+  if (enterRaf) cancelAnimationFrame(enterRaf)
   chart?.dispose()
   chart = null
 })

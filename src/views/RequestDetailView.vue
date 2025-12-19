@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRequestsStore } from '@/stores/requests'
 import { canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
 import { formatDate, formatDateTime } from '@/utils/time'
-import type { RequestStatus } from '@/types/domain'
+import type { Priority, RequestStatus } from '@/types/domain'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
@@ -155,6 +155,21 @@ const resubmitLabel = computed(() => {
   return '重新进入评审'
 })
 
+function priorityStyle(p?: Priority | null) {
+  switch (p) {
+    case 'P0':
+      return { color: '#b71c1c', backgroundColor: '#fdecea', borderColor: '#f5c6c4' }
+    case 'P1':
+      return { color: '#c05621', backgroundColor: '#fff4e5', borderColor: '#fbd38d' }
+    case 'P2':
+      return { color: '#2b6cb0', backgroundColor: '#ebf4ff', borderColor: '#c3dafe' }
+    case 'P3':
+      return { color: '#4a5568', backgroundColor: '#edf2f7', borderColor: '#e2e8f0' }
+    default:
+      return { color: '#909399', backgroundColor: '#f4f4f5', borderColor: '#e4e7ed' }
+  }
+}
+
 const reviewActions = computed(() => {
   if (!req.value) return { accept: false, suspend: false, reject: false, needInfo: false, close: false }
   const s = req.value.status
@@ -244,7 +259,12 @@ const reviewActions = computed(() => {
         <el-descriptions :column="3" border>
           <el-descriptions-item label="提交者">{{ requesterName }}</el-descriptions-item>
           <el-descriptions-item label="评审者">{{ reviewerName }}</el-descriptions-item>
-          <el-descriptions-item label="优先级">{{ req.priority ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="优先级">
+            <el-tag v-if="req.priority" effect="plain" size="small" :style="priorityStyle(req.priority)">
+              {{ req.priority }}
+            </el-tag>
+            <span v-else class="text-muted">-</span>
+          </el-descriptions-item>
           <el-descriptions-item label="分类">{{ req.category ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="标签">
             <el-space wrap>

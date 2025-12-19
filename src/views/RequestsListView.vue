@@ -177,6 +177,21 @@ function reviewActionsFor(row: { status: RequestStatus }) {
   }
 }
 
+function priorityStyle(p?: Priority | null) {
+  switch (p) {
+    case 'P0':
+      return { color: '#b71c1c', backgroundColor: '#fdecea', borderColor: '#f5c6c4' }
+    case 'P1':
+      return { color: '#c05621', backgroundColor: '#fff4e5', borderColor: '#fbd38d' }
+    case 'P2':
+      return { color: '#2b6cb0', backgroundColor: '#ebf4ff', borderColor: '#c3dafe' }
+    case 'P3':
+      return { color: '#4a5568', backgroundColor: '#edf2f7', borderColor: '#e2e8f0' }
+    default:
+      return { color: '#909399', backgroundColor: '#f4f4f5', borderColor: '#e4e7ed' }
+  }
+}
+
 async function onConfirmStatus() {
   if (!statusDialog.requestId || !statusDialog.toStatus) return
   const toStatus = statusDialog.toStatus
@@ -311,7 +326,12 @@ onMounted(() => {
           <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>
         </el-table-column>
         <el-table-column label="优先级" width="90">
-          <template #default="{ row }">{{ row.priority ?? '-' }}</template>
+          <template #default="{ row }">
+            <el-tag v-if="row.priority" effect="plain" size="small" :style="priorityStyle(row.priority)">
+              {{ row.priority }}
+            </el-tag>
+            <span v-else class="text-muted">-</span>
+          </template>
         </el-table-column>
         <el-table-column label="分类" width="90">
           <template #default="{ row }">{{ row.category ?? '-' }}</template>

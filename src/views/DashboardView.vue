@@ -134,7 +134,7 @@ onMounted(() => {
             </div>
           </template>
           <div class="text-muted">
-            这是一个后端 + SQLite 数据库驱动的多用户版本：支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
+            支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
           </div>
         </el-card>
       </el-col>

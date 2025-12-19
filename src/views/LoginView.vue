@@ -29,8 +29,8 @@ async function onLogin() {
 <template>
   <div class="wrap">
     <div class="card">
-      <div class="title">用户需求管理</div>
-      <div class="subtitle">多用户版本（后端 + 数据库）</div>
+      <div class="title">AIRVIEW用户需求管理平台</div>
+      <!-- <div class="subtitle">多用户版本（后端 + 数据库）</div> -->
 
       <el-form label-position="top" @submit.prevent>
         <el-form-item label="用户名">
@@ -43,7 +43,7 @@ async function onLogin() {
       </el-form>
 
       <div class="hint text-muted">
-        默认会自动种子一个管理员：<span class="mono">admin / admin123</span>（请上线前通过环境变量/用户管理修改）
+        <!-- 默认会自动种子一个管理员：<span class="mono">admin / admin123</span>（请上线前通过环境变量/用户管理修改） -->
       </div>
     </div>
   </div>

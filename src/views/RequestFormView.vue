@@ -14,6 +14,7 @@ const router = useRouter()
 
 const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const isEdit = computed(() => !!id.value)
+const isAdmin = computed(() => auth.user?.role === 'admin')
 
 const source = computed<RequestItem | null>(() => {
   if (!isEdit.value) return null
@@ -32,6 +33,7 @@ const form = reactive({
   tagsText: '',
   linksText: '',
   impactScope: '',
+  createdAt: '',
 })
 
 const formRef = ref()
@@ -55,6 +57,7 @@ watchEffect(() => {
   form.tagsText = (source.value.tags ?? []).join(', ')
   form.linksText = (source.value.links ?? []).join('\n')
   form.impactScope = source.value.impactScope ?? ''
+  form.createdAt = source.value.createdAt ?? ''
 })
 
 const rules = {
@@ -99,6 +102,7 @@ async function onSubmit() {
     tags: parseTags(form.tagsText),
     links: parseLinks(form.linksText),
     impactScope: form.impactScope || undefined,
+    createdAt: isEdit.value && isAdmin.value ? form.createdAt || undefined : undefined,
   }
 
   if (!isEdit.value) {
@@ -176,6 +180,21 @@ onMounted(() => {
           <el-col :span="12">
             <el-form-item label="标签（逗号分隔）">
               <el-input v-model="form.tagsText" placeholder="例如：MVP, 列表, 体验" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row v-if="isEdit && isAdmin" :gutter="12">
+          <el-col :span="8">
+            <el-form-item label="提交时间（管理员可改）">
+              <el-date-picker
+                v-model="form.createdAt"
+                type="datetime"
+                value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]"
+                format="YYYY-MM-DD HH:mm:ss"
+                placeholder="选择提交时间"
+                :disabled="!isAdmin"
+              />
             </el-form-item>
           </el-col>
         </el-row>

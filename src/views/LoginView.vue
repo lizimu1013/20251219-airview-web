@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import logoUrl from '@/assets/logo.svg'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -29,8 +30,11 @@ async function onLogin() {
 <template>
   <div class="wrap">
     <div class="card">
-      <div class="title">用户需求管理</div>
-      <div class="subtitle">多用户版本（后端 + 数据库）</div>
+      <div class="brand">
+        <img class="brand-logo" :src="logoUrl" alt="URM" />
+        <div class="title">AIRVIEW用户需求管理平台</div>
+      </div>
+      <!-- <div class="subtitle">多用户版本（后端 + 数据库）</div> -->
 
       <el-form label-position="top" @submit.prevent>
         <el-form-item label="用户名">
@@ -43,7 +47,7 @@ async function onLogin() {
       </el-form>
 
       <div class="hint text-muted">
-        默认会自动种子一个管理员：<span class="mono">admin / admin123</span>（请上线前通过环境变量/用户管理修改）
+        <!-- 默认会自动种子一个管理员：<span class="mono">admin / admin123</span>（请上线前通过环境变量/用户管理修改） -->
       </div>
     </div>
   </div>
@@ -66,10 +70,21 @@ async function onLogin() {
   background: #fff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  display: block;
+  flex: 0 0 auto;
+}
 .title {
   font-size: 20px;
   font-weight: 800;
-  margin-bottom: 2px;
 }
 .subtitle {
   font-size: 13px;
@@ -82,4 +97,3 @@ async function onLogin() {
   line-height: 1.6;
 }
 </style>
-

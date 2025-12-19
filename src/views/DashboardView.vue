@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRequestsStore } from '@/stores/requests'
 import { apiRequest } from '@/api/http'
 import OverviewLineChart from '@/components/charts/OverviewLineChart.vue'
+import { RefreshRight } from '@element-plus/icons-vue'
 import {
   Box,
   CircleCheckFilled,
@@ -43,6 +44,7 @@ const distribution = computed(() => {
 
 const trend = ref<{ dates: string[]; counts: number[] }>({ dates: [], counts: [] })
 const loadingTrend = ref(false)
+const trendChartKey = ref(0)
 
 const trendRange = computed(() => {
   if (!trend.value.dates.length) return ''
@@ -50,6 +52,7 @@ const trendRange = computed(() => {
 })
 const trendLabels = computed(() => trend.value.dates.map((d) => d.slice(5)))
 const trendSeries = computed(() => [{ name: '新增需求', data: trend.value.counts, color: '#409EFF' }])
+const hasTrend = computed(() => trend.value.dates.length > 0)
 
 async function loadSummary() {
   const res = await apiRequest<{ counts: typeof reqsStore.summary }>('/api/dashboard/summary')
@@ -61,6 +64,7 @@ async function loadTrend() {
   try {
     const res = await apiRequest<{ dates: string[]; counts: number[] }>('/api/dashboard/trend?days=14')
     trend.value = res
+    trendChartKey.value += 1
   } finally {
     loadingTrend.value = false
   }
@@ -90,14 +94,22 @@ onMounted(() => {
 
     <el-row :gutter="12" style="margin-top: 12px">
       <el-col :xs="24">
-        <el-card v-loading="loadingTrend">
+        <el-card>
           <template #header>
             <div class="app-card-header">
               <div>需求趋势</div>
-              <div class="text-muted">{{ trendRange || '近 14 天' }}</div>
+              <div class="trend-right">
+                <div class="text-muted">{{ trendRange || '近 14 天' }}</div>
+                <el-button text size="small" @click="trendChartKey += 1">
+                  <el-icon><RefreshRight /></el-icon>
+                  重播
+                </el-button>
+              </div>
             </div>
           </template>
-          <OverviewLineChart :labels="trendLabels" :series="trendSeries" :height="320" />
+          <el-skeleton v-if="loadingTrend" animated :rows="5" />
+          <OverviewLineChart v-else-if="hasTrend" :key="trendChartKey" :labels="trendLabels" :series="trendSeries" :height="320" />
+          <el-empty v-else description="暂无数据" />
         </el-card>
       </el-col>
     </el-row>
@@ -134,7 +146,7 @@ onMounted(() => {
             </div>
           </template>
           <div class="text-muted">
-            这是一个后端 + SQLite 数据库驱动的多用户版本：支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
+            支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
           </div>
         </el-card>
       </el-col>
@@ -232,5 +244,10 @@ onMounted(() => {
   text-align: right;
   color: #606266;
   font-size: 12px;
+}
+.trend-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>

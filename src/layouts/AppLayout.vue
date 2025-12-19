@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import logoUrl from '@/assets/logo.svg'
 import { House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -30,9 +31,9 @@ function onLogout() {
 <template>
   <el-container style="height: 100%">
     <el-aside :width="collapsed ? '64px' : '210px'" class="aside">
-      <div class="logo" @click="go('/requests')">
+      <div class="logo" :data-collapsed="collapsed" @click="go('/requests')">
+        <img class="logo-img" :src="logoUrl" alt="URM" />
         <span class="logo-text" v-if="!collapsed">需求管理</span>
-        <span class="logo-text" v-else>URM</span>
       </div>
       <el-menu :default-active="activeMenu" class="menu" :collapse="collapsed" router>
         <el-menu-item index="/dashboard">
@@ -97,11 +98,22 @@ function onLogout() {
   height: 56px;
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: 0 16px;
   font-weight: 700;
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.logo[data-collapsed='true'] {
+  justify-content: center;
+  padding: 0;
+}
+.logo-img {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex: 0 0 auto;
 }
 .logo-text {
   letter-spacing: 0.5px;

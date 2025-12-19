@@ -1,0 +1,41 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#409EFF" />
+      <stop offset="1" stop-color="#67C23A" />
+    </linearGradient>
+    <linearGradient id="shine" x1="24" y1="20" x2="96" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.32" />
+      <stop offset="1" stop-color="white" stop-opacity="0" />
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="128" height="128" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#bg)" />
+  </g>
+  <rect x="14" y="14" width="100" height="100" rx="26" fill="url(#shine)" />
+
+  <!-- Document -->
+  <path
+    d="M44 34C44 30.686 46.686 28 50 28H73.5L86 40.5V88C86 91.314 83.314 94 80 94H50C46.686 94 44 91.314 44 88V34Z"
+    fill="white"
+    fill-opacity="0.95"
+  />
+  <path d="M73.5 28V38.5C73.5 40.709 75.291 42.5 77.5 42.5H86" fill="white" fill-opacity="0.6" />
+
+  <!-- Lines -->
+  <path d="M52 54H78" stroke="#2F3A4A" stroke-opacity="0.22" stroke-width="4" stroke-linecap="round" />
+  <path d="M52 64H72" stroke="#2F3A4A" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" />
+
+  <!-- Check -->
+  <path
+    d="M55.5 77.5L62.2 84.2L76.8 69.6"
+    stroke="#409EFF"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

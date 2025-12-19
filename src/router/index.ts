@@ -10,7 +10,7 @@ const router = createRouter({
       path: '/',
       component: () => import('@/layouts/AppLayout.vue'),
       children: [
-        { path: '', redirect: '/requests' },
+        { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
         { path: 'requests', name: 'requests', component: () => import('@/views/RequestsListView.vue') },
         { path: 'requests/new', name: 'request-new', component: () => import('@/views/RequestFormView.vue') },
@@ -24,7 +24,7 @@ const router = createRouter({
         },
       ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/requests' },
+    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
 })
 

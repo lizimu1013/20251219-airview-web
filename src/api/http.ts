@@ -19,7 +19,8 @@ export async function apiRequest<T>(
   const method = options?.method ?? 'GET'
   const auth = options?.auth ?? true
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (method !== 'GET') headers['Content-Type'] = 'application/json'
+  const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData
+  if (method !== 'GET' && !isFormData) headers['Content-Type'] = 'application/json'
   if (auth) {
     const token = getToken()
     if (token) headers.Authorization = `Bearer ${token}`
@@ -28,7 +29,12 @@ export async function apiRequest<T>(
   const res = await fetch(path, {
     method,
     headers,
-    body: options?.body != null && method !== 'GET' ? JSON.stringify(options.body) : undefined,
+    body:
+      options?.body != null && method !== 'GET'
+        ? isFormData
+          ? (options.body as FormData)
+          : JSON.stringify(options.body)
+        : undefined,
   })
   const isJson = (res.headers.get('content-type') || '').includes('application/json')
   const data = isJson ? await res.json().catch(() => null) : null
@@ -38,4 +44,3 @@ export async function apiRequest<T>(
   }
   return data as T
 }
-

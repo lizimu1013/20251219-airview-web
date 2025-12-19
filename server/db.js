@@ -61,6 +61,19 @@ export function migrate(db) {
       FOREIGN KEY (authorId) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS attachments (
+      id TEXT PRIMARY KEY,
+      requestId TEXT NOT NULL,
+      uploaderId TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mimeType TEXT NOT NULL,
+      sizeBytes INTEGER NOT NULL,
+      storedPath TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (requestId) REFERENCES requests(id) ON DELETE CASCADE,
+      FOREIGN KEY (uploaderId) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
       requestId TEXT NOT NULL,
@@ -79,6 +92,7 @@ export function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_requests_updatedAt ON requests(updatedAt);
     CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(requestId);
     CREATE INDEX IF NOT EXISTS idx_audit_request ON audit_logs(requestId);
+    CREATE INDEX IF NOT EXISTS idx_attachments_request ON attachments(requestId);
   `)
 }
 
@@ -94,4 +108,3 @@ export function fromJson(value, fallback) {
     return fallback
   }
 }
-

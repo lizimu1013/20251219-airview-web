@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { apiRequest } from '@/api/http'
-import type { Category, CommentItem, Priority, RequestItem, RequestStatus, AuditLogItem } from '@/types/domain'
+import type { Category, CommentItem, Priority, RequestItem, RequestStatus, AuditLogItem, AttachmentItem } from '@/types/domain'
 
 export type RequestsQuery = Partial<{
   q: string
@@ -25,6 +25,7 @@ type RequestDetailResponse = {
   request: RequestItem
   comments: CommentItem[]
   auditLogs: AuditLogItem[]
+  attachments: AttachmentItem[]
 }
 
 export const useRequestsStore = defineStore('requests', () => {
@@ -37,6 +38,7 @@ export const useRequestsStore = defineStore('requests', () => {
   const current = ref<RequestItem | null>(null)
   const comments = ref<CommentItem[]>([])
   const auditLogs = ref<AuditLogItem[]>([])
+  const attachments = ref<AttachmentItem[]>([])
   const loadingDetail = ref(false)
 
   const summary = ref({
@@ -86,6 +88,7 @@ export const useRequestsStore = defineStore('requests', () => {
       current.value = res.request
       comments.value = res.comments
       auditLogs.value = res.auditLogs
+      attachments.value = res.attachments
     } finally {
       loadingDetail.value = false
     }
@@ -125,6 +128,14 @@ export const useRequestsStore = defineStore('requests', () => {
     await fetchDetail(requestId)
   }
 
+  async function uploadAttachment(requestId: string, file: File) {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await apiRequest<AttachmentItem>(`/api/requests/${requestId}/attachments`, { method: 'POST', body: form })
+    attachments.value = [res, ...attachments.value]
+    return res
+  }
+
   function setSummary(next: typeof summary.value) {
     summary.value = next
   }
@@ -138,6 +149,7 @@ export const useRequestsStore = defineStore('requests', () => {
     current,
     comments,
     auditLogs,
+    attachments,
     loadingDetail,
     summary,
     byId,
@@ -148,6 +160,7 @@ export const useRequestsStore = defineStore('requests', () => {
     addComment,
     changeStatus,
     resubmit,
+    uploadAttachment,
     setSummary,
   }
 })

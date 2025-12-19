@@ -66,3 +66,14 @@ export interface AuditLogItem {
   note?: string
   createdAt: string
 }
+
+export interface AttachmentItem {
+  id: string
+  requestId: string
+  uploaderId: string
+  uploaderName?: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: string
+}

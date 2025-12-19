@@ -54,7 +54,7 @@ function switchMode() {
     <div class="card">
       <div class="brand">
         <img class="brand-logo" :src="logoUrl" alt="URM" />
-        <div class="title">AIRVIEW用户需求管理平台</div>
+        <div class="title">AIRVIEW轻量化需求管理平台</div>
       </div>
       <!-- <div class="subtitle">多用户版本（后端 + 数据库）</div> -->
 

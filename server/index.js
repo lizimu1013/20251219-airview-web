@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { nanoid } from 'nanoid'
 import bcrypt from 'bcryptjs'
+import multer from 'multer'
 
 import { authMiddleware, requireRole, signToken } from './auth.js'
 import { fromJson, migrate, openDb, toJson } from './db.js'
@@ -23,6 +24,20 @@ if (corsOrigin) {
 
 const db = openDb()
 migrate(db)
+
+const uploadsDir = path.resolve(process.cwd(), 'data', 'uploads')
+fs.mkdirSync(uploadsDir, { recursive: true })
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').slice(0, 8)
+      cb(null, `${nanoid()}${ext}`)
+    },
+  }),
+  limits: { fileSize: 200 * 1024 * 1024 },
+})
 
 function nowIso() {
   return new Date().toISOString()
@@ -95,6 +110,21 @@ function addAudit({ requestId, actorId, actionType, fromValue, toValue, note }) 
   db.prepare(
     'INSERT INTO audit_logs (id, requestId, actorId, actionType, fromJson, toJson, note, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   ).run(nanoid(), requestId, actorId, actionType, toJson(fromValue), toJson(toValue), note ?? null, nowIso())
+}
+
+function rowToAttachment(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    requestId: row.requestId,
+    uploaderId: row.uploaderId,
+    uploaderName: row.uploaderName ?? undefined,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    createdAt: row.createdAt,
+    storedPath: row.storedPath,
+  }
 }
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
@@ -435,7 +465,24 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
       createdAt: l.createdAt,
     }))
 
-  return res.json({ request, comments, auditLogs })
+  const attachments = db
+    .prepare(
+      `
+      SELECT a.*, u.name AS uploaderName
+      FROM attachments a
+      JOIN users u ON u.id = a.uploaderId
+      WHERE a.requestId = ?
+      ORDER BY a.createdAt DESC
+    `,
+    )
+    .all(id)
+    .map((row) => {
+      const a = rowToAttachment(row)
+      delete a.storedPath
+      return a
+    })
+
+  return res.json({ request, comments, auditLogs, attachments })
 })
 
 app.patch('/api/requests/:id', authMiddleware, (req, res) => {
@@ -573,6 +620,78 @@ app.post('/api/requests/:id/resubmit', authMiddleware, (req, res) => {
   db.prepare('UPDATE requests SET status=?, updatedAt=? WHERE id=?').run('Submitted', t, id)
   addAudit({ requestId: id, actorId: user.id, actionType: 'status_change', fromValue: { status: current.status }, toValue: { status: 'Submitted' }, note })
   return res.json({ ok: true })
+})
+
+app.post('/api/requests/:id/attachments', authMiddleware, upload.single('file'), (req, res) => {
+  const user = req.user
+  const id = req.params.id
+  const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id)
+  if (!row) return res.status(404).json({ message: 'not found' })
+  const current = rowToRequest({ ...row, requesterName: '', reviewerName: '' })
+  if (!canViewRequest(user, current)) return res.status(403).json({ message: 'forbidden' })
+
+  const file = req.file
+  if (!file) return res.status(400).json({ message: 'file required' })
+
+  const att = {
+    id: nanoid(),
+    requestId: id,
+    uploaderId: user.id,
+    filename: file.originalname || file.filename,
+    mimeType: file.mimetype || 'application/octet-stream',
+    sizeBytes: file.size,
+    storedPath: file.path,
+    createdAt: nowIso(),
+  }
+  db.prepare(
+    'INSERT INTO attachments (id, requestId, uploaderId, filename, mimeType, sizeBytes, storedPath, createdAt) VALUES (@id, @requestId, @uploaderId, @filename, @mimeType, @sizeBytes, @storedPath, @createdAt)',
+  ).run(att)
+
+  const result = {
+    id: att.id,
+    requestId: att.requestId,
+    uploaderId: att.uploaderId,
+    uploaderName: user.name,
+    filename: att.filename,
+    mimeType: att.mimeType,
+    sizeBytes: att.sizeBytes,
+    createdAt: att.createdAt,
+  }
+  return res.json(result)
+})
+
+app.get('/api/attachments/:id/download', authMiddleware, (req, res) => {
+  const attId = req.params.id
+  const row = db
+    .prepare(
+      `
+      SELECT a.*, r.requesterId, r.reviewerId, r.status
+      FROM attachments a
+      JOIN requests r ON r.id = a.requestId
+      WHERE a.id = ?
+    `,
+    )
+    .get(attId)
+  if (!row) return res.status(404).json({ message: 'not found' })
+  const attachment = rowToAttachment(row)
+  const request = rowToRequest({ ...row, requesterName: '', reviewerName: '' })
+  if (!canViewRequest(req.user, request)) return res.status(403).json({ message: 'forbidden' })
+  if (!fs.existsSync(attachment.storedPath)) return res.status(410).json({ message: 'file missing' })
+
+  res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream')
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`)
+  const stream = fs.createReadStream(attachment.storedPath)
+  stream.pipe(res)
+})
+
+app.use((err, _req, res, _next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ message: '文件过大，最大 200MB' })
+    return res.status(400).json({ message: '文件上传失败' })
+  }
+  // eslint-disable-next-line no-console
+  console.error(err)
+  return res.status(500).json({ message: 'server error' })
 })
 
 // Serve SPA in production

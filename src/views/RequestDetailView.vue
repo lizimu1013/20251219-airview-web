@@ -8,6 +8,7 @@ import { useRequestsStore } from '@/stores/requests'
 import { canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
 import { formatDate, formatDateTime } from '@/utils/time'
 import type { Priority, RequestStatus } from '@/types/domain'
+import { getToken } from '@/utils/token'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
@@ -34,6 +35,7 @@ const reviewerName = computed(() => req.value?.reviewerName ?? req.value?.review
 
 const comments = computed(() => store.comments)
 const logs = computed(() => store.auditLogs)
+const attachments = computed(() => store.attachments)
 
 const commentText = ref('')
 async function onAddComment() {
@@ -154,6 +156,67 @@ const resubmitLabel = computed(() => {
   if (req.value.status === 'NeedInfo') return '补充后重新提交'
   return '重新进入评审'
 })
+
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
+
+function formatSize(bytes: number) {
+  if (!Number.isFinite(bytes)) return '-'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let v = bytes
+  let idx = 0
+  while (v >= 1024 && idx < units.length - 1) {
+    v /= 1024
+    idx += 1
+  }
+  return `${v.toFixed(v >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`
+}
+
+async function onSelectFile(ev: Event) {
+  if (!req.value) return
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (file.size > 200 * 1024 * 1024) {
+    ElMessage.error('文件不能超过 200MB')
+    input.value = ''
+    return
+  }
+  uploading.value = true
+  try {
+    await store.uploadAttachment(req.value.id, file)
+    ElMessage.success('上传成功')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '上传失败')
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
+}
+
+async function downloadAttachment(att: { id: string; filename: string }) {
+  const token = getToken()
+  try {
+    const res = await fetch(`/api/attachments/${att.id}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) {
+      ElMessage.error('下载失败')
+      return
+    }
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = att.filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    ElMessage.error('下载失败')
+  }
+}
 
 function priorityStyle(p?: Priority | null) {
   switch (p) {
@@ -337,6 +400,30 @@ const reviewActions = computed(() => {
               </template>
               <div style="white-space: pre-wrap">{{ req.impactScope ?? '-' }}</div>
             </el-card>
+
+            <el-card shadow="never" style="margin-top: 12px">
+              <template #header>
+                <div class="app-card-header">
+                  <div class="section-title">附件（≤200MB）</div>
+                  <el-button size="small" type="primary" plain :loading="uploading" @click="fileInput?.click()">
+                    上传
+                  </el-button>
+                </div>
+              </template>
+              <input ref="fileInput" type="file" class="hidden-file" @change="onSelectFile" />
+              <div v-if="!attachments.length" class="text-muted">暂无附件</div>
+              <el-timeline v-else style="margin-top: 8px">
+                <el-timeline-item v-for="a in attachments" :key="a.id" :timestamp="formatDateTime(a.createdAt)">
+                  <div class="attach-line">
+                    <el-link type="primary" :underline="false" @click="downloadAttachment(a)">{{ a.filename }}</el-link>
+                    <span class="text-muted">· {{ formatSize(a.sizeBytes) }}</span>
+                  </div>
+                  <div class="text-muted" style="margin-top: 2px">
+                    上传者：{{ a.uploaderName ?? a.uploaderId }}
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+            </el-card>
           </el-col>
         </el-row>
       </el-card>
@@ -466,5 +553,13 @@ const reviewActions = computed(() => {
 }
 .review-note {
   padding-top: 4px;
+}
+.hidden-file {
+  display: none;
+}
+.attach-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

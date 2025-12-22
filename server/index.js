@@ -115,15 +115,18 @@ async function postJson(url, payload) {
   })
   const text = await res.text()
   let data = null
-  if ((res.headers.get('content-type') || '').includes('application/json')) {
+  if (text) {
     try {
-      data = text ? JSON.parse(text) : null
+      data = JSON.parse(text)
     } catch {
       data = null
     }
   }
+  if (!data && text && text.includes('=') && text.includes('access_token')) {
+    data = Object.fromEntries(new URLSearchParams(text))
+  }
   if (!res.ok) {
-    const msg = data?.message || text || res.statusText || 'request failed'
+    const msg = data?.message || data?.error || data?.error_description || text || res.statusText || 'request failed'
     const error = new Error(msg)
     error.status = res.status
     throw error
@@ -388,7 +391,11 @@ app.get('/authorize', async (req, res) => {
       grant_type: 'authorization_code',
       code,
     })
-    if (!token?.access_token) return redirectSsoError(req, res, 'token_missing', redirectTo)
+    if (!token?.access_token) {
+      // eslint-disable-next-line no-console
+      console.error('SSO token response missing access_token', token)
+      return redirectSsoError(req, res, 'token_missing', redirectTo)
+    }
 
     const userinfo = await postJson(SSO_USERINFO_URL, {
       client_id: SSO_CLIENT_ID,

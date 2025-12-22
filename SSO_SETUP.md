@@ -46,3 +46,4 @@ location = /authorize {
 前端点击“退出”会先清理本地 token，然后重定向到后端 `/api/sso/logout`，再由后端跳转到
 `https://uniportal.huawei.com/saaslogin1/oauth2/logout` 以清除 IDaaS 的浏览器凭证。
 退出后会回到 `/login?manual=1`，避免自动再次发起 SSO 登录。
+如果设置了 `SSO_REDIRECT_URI`，退出回跳会优先使用其域名，避免拼出 `localhost`。

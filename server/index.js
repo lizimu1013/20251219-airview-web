@@ -92,13 +92,25 @@ function buildBaseUrl(req) {
   return `${proto}://${host}`
 }
 
+function getPublicBaseUrl(req) {
+  const redirectUri = process.env.SSO_REDIRECT_URI
+  if (redirectUri) {
+    try {
+      return new URL(redirectUri).origin
+    } catch {
+      // fall through to request-derived base
+    }
+  }
+  return buildBaseUrl(req)
+}
+
 function getSsoRedirectUri(req) {
   return process.env.SSO_REDIRECT_URI || `${buildBaseUrl(req)}/authorize`
 }
 
 function getLogoutRedirectUri(req, redirectTo) {
   const safeRedirect = sanitizeRedirectPath(redirectTo)
-  return `${buildBaseUrl(req)}${safeRedirect}`
+  return `${getPublicBaseUrl(req)}${safeRedirect}`
 }
 
 function encodeState(payload) {

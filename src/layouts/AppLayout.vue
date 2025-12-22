@@ -16,6 +16,17 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/admin')) return '/admin/users'
   return route.path
 })
+const userLabel = computed(() => {
+  const user = auth.user
+  if (!user) return ''
+  const rawName = String(user.name || '').trim()
+  const chineseParts = rawName.match(/[\u4e00-\u9fff]+/g)
+  const name = chineseParts?.length ? chineseParts.join('') : rawName
+  const username = String(user.username || '').trim()
+  if (!username) return name
+  if (!name) return username
+  return `${name}（${username}）`
+})
 
 function go(path: string) {
   router.push(path)
@@ -72,7 +83,7 @@ function onLogout() {
 
         <div class="header-right">
           <el-tag v-if="auth.user" type="info" effect="plain">
-            {{ auth.user.name }}（{{ auth.user.role }}）
+            {{ userLabel }}
           </el-tag>
           <el-button text @click="onLogout">
             <el-icon><SwitchButton /></el-icon>

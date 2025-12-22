@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>第三方登录</title>
+</head>
+
+<body>
+    <h1>第三方登录演示</h1>
+    <a href="{{ url_for('authorize') }}">
+        <button>用W3登录</button>
+    </a>
+</body>
+<!-- <script>
+    const w3login = () => {
+        window.location.href = `https://uniportal.huawei.com/saaslogin1/oauth2/authorize?client_id=com.huawei.hisilicon.essd.v7&response_type=code&redirect_uri=${encodeURIComponent('http://envs.manager.dev.huawei.com:5000')}`
+    }
+</script> -->
+
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户信息</title>
+</head>
+<body>
+    <h2>欢迎, {{ userinfo.displayName }}</h2>
+    <ul>
+        <li>UUID: {{ userinfo.uuid }}</li>
+        <li>工号: {{ userinfo.uid }}</li>
+        <li>邮箱: {{ userinfo.email }}</li>
+    </ul>
+    <a href="/index.html">返回首页</a>
+</body>
+</html>

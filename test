@@ -1,1 +1,15 @@
 https://airview.rnd.huawei.com/authorize?redirect=%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard%3Fredirect%3D%2Fdashboard
+
+  location = /authorize {
+    proxy_pass http://127.0.0.1:5347;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:5347;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }

@@ -87,8 +87,10 @@ function sanitizeRedirectPath(value) {
 }
 
 function buildBaseUrl(req) {
-  const proto = req.protocol || 'http'
-  const host = req.get('host')
+  const forwardedProto = req.get('x-forwarded-proto')
+  const proto = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol || 'http'
+  const forwardedHost = req.get('x-forwarded-host')
+  const host = forwardedHost || req.get('host')
   return `${proto}://${host}`
 }
 

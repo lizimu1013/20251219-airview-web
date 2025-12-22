@@ -48,8 +48,9 @@ const SSO_USERINFO_URL = process.env.SSO_USERINFO_URL || 'https://uniportal.huaw
 const SSO_LOGOUT_URL = process.env.SSO_LOGOUT_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/logout'
 const SSO_SCOPE = process.env.SSO_SCOPE || 'base.profile'
 const SSO_STATE_COOKIE = 'urm_sso_state'
-
+const SSO_REDIRECT_URI = 'https://airview.rnd.huawei.com/authorize'
 const REDIRECT_URI = 'https://airview.rnd.huawei.com/authorize'
+const HUAEI_URI = 'https://airview.rnd.huawei.com'
 
 function nowIso() {
   return new Date().toISOString()
@@ -381,7 +382,7 @@ app.get('/api/sso/login', (req, res) => redirectToSso(req, res, req.query.redire
 
 app.get('/api/sso/logout', (req, res) => {
   const redirectPath = typeof req.query.redirect === 'string' ? req.query.redirect : '/login?manual=1'
-  const redirectUri = getLogoutRedirectUri(req, redirectPath)
+  const redirectUri = HUAEI_URI
   const params = new URLSearchParams({ clientId: SSO_CLIENT_ID, redirect: redirectUri })
   return res.redirect(`${SSO_LOGOUT_URL}?${params.toString()}`)
 })

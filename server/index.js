@@ -48,6 +48,8 @@ const SSO_USERINFO_URL = process.env.SSO_USERINFO_URL || 'https://uniportal.huaw
 const SSO_SCOPE = process.env.SSO_SCOPE || 'base.profile'
 const SSO_STATE_COOKIE = 'urm_sso_state'
 
+const REDIRECT_URI = 'https://airview.rnd.huawei.com/authorize'
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -335,7 +337,7 @@ function redirectToSso(req, res, redirectTo) {
   })
   const params = new URLSearchParams({
     client_id: SSO_CLIENT_ID,
-    redirect_uri: getSsoRedirectUri(req),
+    redirect_uri: REDIRECT_URI,
     response_type: 'code',
     scope: SSO_SCOPE,
     state,
@@ -382,7 +384,7 @@ app.get('/authorize', async (req, res) => {
     const token = await postJson(SSO_ACCESS_TOKEN_URL, {
       client_id: SSO_CLIENT_ID,
       client_secret: SSO_CLIENT_SECRET,
-      redirect_uri: getSsoRedirectUri(req),
+      redirect_uri: REDIRECT_URI,
       grant_type: 'authorization_code',
       code,
     })

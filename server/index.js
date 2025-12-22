@@ -45,6 +45,7 @@ const SSO_CLIENT_SECRET = process.env.SSO_CLIENT_SECRET || process.env.W3_CLIENT
 const SSO_AUTHORIZE_URL = process.env.SSO_AUTHORIZE_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/authorize'
 const SSO_ACCESS_TOKEN_URL = process.env.SSO_ACCESS_TOKEN_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/accesstoken'
 const SSO_USERINFO_URL = process.env.SSO_USERINFO_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/userinfo'
+const SSO_LOGOUT_URL = process.env.SSO_LOGOUT_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/logout'
 const SSO_SCOPE = process.env.SSO_SCOPE || 'base.profile'
 const SSO_STATE_COOKIE = 'urm_sso_state'
 
@@ -93,6 +94,11 @@ function buildBaseUrl(req) {
 
 function getSsoRedirectUri(req) {
   return process.env.SSO_REDIRECT_URI || `${buildBaseUrl(req)}/authorize`
+}
+
+function getLogoutRedirectUri(req, redirectTo) {
+  const safeRedirect = sanitizeRedirectPath(redirectTo)
+  return `${buildBaseUrl(req)}${safeRedirect}`
 }
 
 function encodeState(payload) {
@@ -358,6 +364,13 @@ function redirectSsoError(req, res, reason, redirectTo) {
 }
 
 app.get('/api/sso/login', (req, res) => redirectToSso(req, res, req.query.redirect))
+
+app.get('/api/sso/logout', (req, res) => {
+  const redirectPath = typeof req.query.redirect === 'string' ? req.query.redirect : '/login?manual=1'
+  const redirectUri = getLogoutRedirectUri(req, redirectPath)
+  const params = new URLSearchParams({ clientId: SSO_CLIENT_ID, redirect: redirectUri })
+  return res.redirect(`${SSO_LOGOUT_URL}?${params.toString()}`)
+})
 
 app.get('/authorize', async (req, res) => {
   if (req.query.error) return redirectSsoError(req, res, String(req.query.error), req.query.redirect)

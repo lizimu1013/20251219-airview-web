@@ -40,3 +40,9 @@ location = /authorize {
 1. 访问 `https://airview.rnd.huawei.com/authorize` 应直接 302 跳转到 SSO 登录页。
 2. 回调 `/authorize?code=...` 返回 HTML 中应包含 `localStorage.setItem('urm_token', ...)`。
 3. 登录后 `/api/me` 返回 200，页面不再循环跳转。
+
+## 退出说明
+
+前端点击“退出”会先清理本地 token，然后重定向到后端 `/api/sso/logout`，再由后端跳转到
+`https://uniportal.huawei.com/saaslogin1/oauth2/logout` 以清除 IDaaS 的浏览器凭证。
+退出后会回到 `/login?manual=1`，避免自动再次发起 SSO 登录。

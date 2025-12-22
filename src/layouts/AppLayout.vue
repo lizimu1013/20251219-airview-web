@@ -24,7 +24,7 @@ function go(path: string) {
 function onLogout() {
   auth.logout()
   ElMessage.success('已退出')
-  router.replace('/login')
+  window.location.replace('/api/sso/logout?redirect=/login?manual=1')
 }
 </script>
 

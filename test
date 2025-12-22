@@ -24,3 +24,20 @@ https://airview.rnd.huawei.com/authorize?redirect=%2Fdashboard%3Fredirect%3D%2Fd
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   }
+
+
+  2.6 退出
+先使业务的会话凭证失效后重定向至 IDaaS 的退出地址，清除IDaaS的凭证即可
+
+该退出接口仅用于退出浏览器中的 IDaaS 登录凭证(相关的 cookie 信息)，无法使令牌立刻失效;
+如需令牌失效需要调用令牌失效接口才能实现(详情参考5.1 章节)
+
+请求示例：
+
+复制代码
+请求方式: 重定向
+请求URI: /saaslogin1/oauth2/logout?clientId=&redirect=
+参数说明
+键	是否必填	描述
+clientId	✔	注册时的唯一标识
+redirect	✔	参数是第三方网站退出后的跳转网址，详细内容参考 redirect_uri 注意事项

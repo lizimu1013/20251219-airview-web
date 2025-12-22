@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -16,7 +16,16 @@ const form = reactive({
 })
 
 const redirectTo = computed(() => (typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'))
+const ssoError = computed(() => (typeof route.query.sso_error === 'string' ? route.query.sso_error : ''))
+const manualMode = computed(() => route.query.manual === '1' || !!ssoError.value)
+const ssoLoginUrl = computed(() => `/authorize?redirect=${encodeURIComponent(redirectTo.value)}`)
 const isRegister = computed(() => route.query.mode === 'register')
+
+onMounted(() => {
+  if (!manualMode.value) {
+    window.location.replace(ssoLoginUrl.value)
+  }
+})
 
 async function onLogin() {
   try {
@@ -47,6 +56,15 @@ function switchMode() {
   }
   router.replace({ path: '/login', query: q })
 }
+
+function startSso() {
+  window.location.replace(ssoLoginUrl.value)
+}
+
+function enableManualLogin() {
+  const q = { ...route.query, manual: '1' }
+  router.replace({ path: '/login', query: q })
+}
 </script>
 
 <template>
@@ -58,25 +76,42 @@ function switchMode() {
       </div>
       <!-- <div class="subtitle">多用户版本（后端 + 数据库）</div> -->
 
-      <el-form label-position="top" @submit.prevent>
-        <el-form-item label="工号 / 账号">
-          <el-input v-model="form.username" autocomplete="username" placeholder="例如：l00826434" />
-        </el-form-item>
-        <el-form-item v-if="isRegister" label="姓名">
-          <el-input v-model="form.name" autocomplete="name" placeholder="请输入姓名" />
-        </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" autocomplete="current-password" show-password />
-        </el-form-item>
-        <el-button v-if="!isRegister" type="primary" style="width: 100%" @click="onLogin">登录</el-button>
-        <el-button v-else type="primary" style="width: 100%" @click="onRegister">注册并登录</el-button>
-      </el-form>
-
-      <div class="hint text-muted">
-        <el-link type="primary" :underline="false" @click="switchMode">
-          {{ isRegister ? '返回登录' : '没有账号？去注册' }}
-        </el-link>
+      <div v-if="!manualMode" class="sso-box">
+        <div class="sso-title">正在跳转到统一登录...</div>
+        <el-button type="primary" style="width: 100%" @click="startSso">继续跳转</el-button>
+        <div class="hint text-muted">
+          <el-link type="primary" :underline="false" @click="enableManualLogin">使用账号密码登录</el-link>
+        </div>
       </div>
+
+      <template v-else>
+        <el-alert
+          v-if="ssoError"
+          type="warning"
+          :closable="false"
+          :title="`统一登录失败：${ssoError}`"
+          style="margin-bottom: 12px"
+        />
+        <el-form label-position="top" @submit.prevent>
+          <el-form-item label="工号 / 账号">
+            <el-input v-model="form.username" autocomplete="username" placeholder="例如：l00826434" />
+          </el-form-item>
+          <el-form-item v-if="isRegister" label="姓名">
+            <el-input v-model="form.name" autocomplete="name" placeholder="请输入姓名" />
+          </el-form-item>
+          <el-form-item label="密码">
+            <el-input v-model="form.password" type="password" autocomplete="current-password" show-password />
+          </el-form-item>
+          <el-button v-if="!isRegister" type="primary" style="width: 100%" @click="onLogin">登录</el-button>
+          <el-button v-else type="primary" style="width: 100%" @click="onRegister">注册并登录</el-button>
+        </el-form>
+
+        <div class="hint text-muted">
+          <el-link type="primary" :underline="false" @click="switchMode">
+            {{ isRegister ? '返回登录' : '没有账号？去注册' }}
+          </el-link>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -123,5 +158,14 @@ function switchMode() {
   margin-top: 12px;
   font-size: 12px;
   line-height: 1.6;
+}
+.sso-box {
+  display: grid;
+  gap: 12px;
+  padding: 8px 0 2px;
+}
+.sso-title {
+  font-size: 14px;
+  color: #606266;
 }
 </style>

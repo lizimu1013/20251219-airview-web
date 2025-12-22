@@ -15,6 +15,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const app = express()
+app.set('trust proxy', true)
 app.use(express.json({ limit: '1mb' }))
 
 const corsOrigin = process.env.CORS_ORIGIN
@@ -39,6 +40,14 @@ const upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 },
 })
 
+const SSO_CLIENT_ID = process.env.SSO_CLIENT_ID || process.env.W3_CLIENT_ID || 'airview_login'
+const SSO_CLIENT_SECRET = process.env.SSO_CLIENT_SECRET || process.env.W3_CLIENT_SECRET || 'airview_admin'
+const SSO_AUTHORIZE_URL = process.env.SSO_AUTHORIZE_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/authorize'
+const SSO_ACCESS_TOKEN_URL = process.env.SSO_ACCESS_TOKEN_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/accesstoken'
+const SSO_USERINFO_URL = process.env.SSO_USERINFO_URL || 'https://uniportal.huawei.com/saaslogin1/oauth2/userinfo'
+const SSO_SCOPE = process.env.SSO_SCOPE || 'base.profile'
+const SSO_STATE_COOKIE = 'urm_sso_state'
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -46,6 +55,96 @@ function nowIso() {
 function jsonArray(value) {
   if (Array.isArray(value)) return value
   return []
+}
+
+function parseCookies(header) {
+  if (!header) return {}
+  return header.split(';').reduce((acc, part) => {
+    const [rawKey, ...rest] = part.trim().split('=')
+    if (!rawKey) return acc
+    acc[rawKey] = decodeURIComponent(rest.join('=') || '')
+    return acc
+  }, {})
+}
+
+function setCookie(res, name, value, options) {
+  const parts = [`${name}=${value}`]
+  if (options?.maxAge != null) parts.push(`Max-Age=${options.maxAge}`)
+  if (options?.path) parts.push(`Path=${options.path}`)
+  if (options?.httpOnly) parts.push('HttpOnly')
+  if (options?.sameSite) parts.push(`SameSite=${options.sameSite}`)
+  if (options?.secure) parts.push('Secure')
+  res.setHeader('Set-Cookie', parts.join('; '))
+}
+
+function sanitizeRedirectPath(value) {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/dashboard'
+  return raw
+}
+
+function buildBaseUrl(req) {
+  const proto = req.protocol || 'http'
+  const host = req.get('host')
+  return `${proto}://${host}`
+}
+
+function getSsoRedirectUri(req) {
+  return process.env.SSO_REDIRECT_URI || `${buildBaseUrl(req)}/authorize`
+}
+
+function encodeState(payload) {
+  return Buffer.from(JSON.stringify(payload)).toString('base64url')
+}
+
+function decodeState(state) {
+  try {
+    return JSON.parse(Buffer.from(state, 'base64url').toString('utf8'))
+  } catch {
+    return null
+  }
+}
+
+async function postJson(url, payload) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const text = await res.text()
+  let data = null
+  if ((res.headers.get('content-type') || '').includes('application/json')) {
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = null
+    }
+  }
+  if (!res.ok) {
+    const msg = data?.message || text || res.statusText || 'request failed'
+    const error = new Error(msg)
+    error.status = res.status
+    throw error
+  }
+  return data
+}
+
+function buildSsoHtml(token, redirectTo) {
+  return `<!doctype html>
+<html lang="zh-CN">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>正在登录...</title>
+<body>
+  <script>
+    try {
+      localStorage.setItem('urm_token', ${JSON.stringify(token)});
+    } catch (e) {}
+    window.location.replace(${JSON.stringify(redirectTo)});
+  </script>
+  <noscript>登录完成，请返回 <a href="${redirectTo}">${redirectTo}</a></noscript>
+</body>
+</html>`
 }
 
 function rowToRequest(row) {
@@ -100,10 +199,53 @@ function getUserById(id) {
   return db.prepare('SELECT id, username, name, role, createdAt FROM users WHERE id = ?').get(id)
 }
 
+function getUserByUsername(username) {
+  return db.prepare('SELECT id, username, name, role, createdAt FROM users WHERE username = ?').get(username)
+}
+
 function getUserAuthByUsername(username) {
   return db
     .prepare('SELECT id, username, name, role, passwordHash, createdAt FROM users WHERE username = ?')
     .get(username)
+}
+
+function ensureSsoUser(userinfo) {
+  const usernameRaw = userinfo?.uid || userinfo?.email || userinfo?.uuid || ''
+  const nameRaw = userinfo?.displayName || userinfo?.name || userinfo?.cn || ''
+  const username = String(usernameRaw || '').trim()
+  const name = String(nameRaw || '').trim() || username
+  if (!username) {
+    const err = new Error('missing sso username')
+    err.code = 'SSO_USERNAME_MISSING'
+    throw err
+  }
+  const existing = getUserByUsername(username)
+  if (existing) {
+    if (name && existing.name !== name) {
+      db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, existing.id)
+      return { ...existing, name }
+    }
+    return existing
+  }
+  const t = nowIso()
+  const user = {
+    id: nanoid(),
+    username,
+    name,
+    role: 'requester',
+    passwordHash: bcrypt.hashSync(nanoid(24), 10),
+    createdAt: t,
+  }
+  try {
+    db.prepare(
+      'INSERT INTO users (id, username, name, role, passwordHash, createdAt) VALUES (@id, @username, @name, @role, @passwordHash, @createdAt)',
+    ).run(user)
+  } catch (e) {
+    const fallback = getUserByUsername(username)
+    if (fallback) return fallback
+    throw e
+  }
+  return { id: user.id, username: user.username, name: user.name, role: user.role, createdAt: user.createdAt }
 }
 
 function addAudit({ requestId, actorId, actionType, fromValue, toValue, note }) {
@@ -179,6 +321,88 @@ app.post('/api/auth/register', (req, res) => {
     token,
     user: { id: user.id, username: user.username, name: user.name, role: user.role, createdAt: user.createdAt },
   })
+})
+
+function redirectToSso(req, res, redirectTo) {
+  const safeRedirect = sanitizeRedirectPath(redirectTo)
+  const state = encodeState({ nonce: nanoid(), redirect: safeRedirect })
+  setCookie(res, SSO_STATE_COOKIE, state, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: req.protocol === 'https',
+    maxAge: 300,
+  })
+  const params = new URLSearchParams({
+    client_id: SSO_CLIENT_ID,
+    redirect_uri: getSsoRedirectUri(req),
+    response_type: 'code',
+    scope: SSO_SCOPE,
+    state,
+  })
+  return res.redirect(`${SSO_AUTHORIZE_URL}?${params.toString()}`)
+}
+
+function redirectSsoError(req, res, reason, redirectTo) {
+  const safeRedirect = sanitizeRedirectPath(redirectTo)
+  const params = new URLSearchParams({
+    sso_error: reason || 'sso_failed',
+    redirect: safeRedirect,
+  })
+  return res.redirect(`/login?${params.toString()}`)
+}
+
+app.get('/api/sso/login', (req, res) => redirectToSso(req, res, req.query.redirect))
+
+app.get('/authorize', async (req, res) => {
+  if (req.query.error) return redirectSsoError(req, res, String(req.query.error), req.query.redirect)
+
+  const code = typeof req.query.code === 'string' ? req.query.code : ''
+  if (!code) return redirectToSso(req, res, req.query.redirect)
+
+  const state = typeof req.query.state === 'string' ? req.query.state : ''
+  const cookies = parseCookies(req.headers.cookie || '')
+  const cookieState = cookies[SSO_STATE_COOKIE]
+  const statePayload = state ? decodeState(state) : null
+  const redirectTo = sanitizeRedirectPath(statePayload?.redirect)
+
+  if (!state || !cookieState || cookieState !== state) {
+    return redirectSsoError(req, res, 'state_mismatch', redirectTo)
+  }
+
+  setCookie(res, SSO_STATE_COOKIE, '', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: req.protocol === 'https',
+    maxAge: 0,
+  })
+
+  try {
+    const token = await postJson(SSO_ACCESS_TOKEN_URL, {
+      client_id: SSO_CLIENT_ID,
+      client_secret: SSO_CLIENT_SECRET,
+      redirect_uri: getSsoRedirectUri(req),
+      grant_type: 'authorization_code',
+      code,
+    })
+    if (!token?.access_token) return redirectSsoError(req, res, 'token_missing', redirectTo)
+
+    const userinfo = await postJson(SSO_USERINFO_URL, {
+      client_id: SSO_CLIENT_ID,
+      access_token: token.access_token,
+      scope: SSO_SCOPE,
+    })
+    const user = ensureSsoUser(userinfo)
+    const jwtToken = signToken({ id: user.id, role: user.role, name: user.name, username: user.username })
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    return res.send(buildSsoHtml(jwtToken, redirectTo))
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err)
+    return redirectSsoError(req, res, 'token_exchange_failed', redirectTo)
+  }
 })
 
 app.get('/api/me', authMiddleware, (req, res) => {

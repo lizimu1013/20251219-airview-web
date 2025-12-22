@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRequestsStore } from '@/stores/requests'
 import { canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
 import { formatDate, formatDateTime } from '@/utils/time'
+import { formatUserLabel } from '@/utils/userLabel'
 import type { Priority, RequestStatus } from '@/types/domain'
 import { getToken } from '@/utils/token'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
@@ -30,8 +31,12 @@ const canView = computed(() => (me.value && req.value ? canViewRequest(me.value,
 const canEdit = computed(() => (me.value && req.value ? canEditRequest(me.value, req.value) : false))
 const reviewerLike = computed(() => (me.value ? isReviewerLike(me.value.role) : false))
 
-const requesterName = computed(() => req.value?.requesterName ?? req.value?.requesterId ?? '-')
-const reviewerName = computed(() => req.value?.reviewerName ?? req.value?.reviewerId ?? '-')
+const requesterName = computed(() =>
+  formatUserLabel({ name: req.value?.requesterName, username: req.value?.requesterUsername }) || req.value?.requesterId || '-',
+)
+const reviewerName = computed(() =>
+  formatUserLabel({ name: req.value?.reviewerName, username: req.value?.reviewerUsername }) || req.value?.reviewerId || '-',
+)
 
 const comments = computed(() => store.comments)
 const logs = computed(() => store.auditLogs)
@@ -419,7 +424,7 @@ const reviewActions = computed(() => {
                     <span class="text-muted">· {{ formatSize(a.sizeBytes) }}</span>
                   </div>
                   <div class="text-muted" style="margin-top: 2px">
-                    上传者：{{ a.uploaderName ?? a.uploaderId }}
+                    上传者：{{ formatUserLabel({ name: a.uploaderName, username: a.uploaderUsername }) || a.uploaderId }}
                   </div>
                 </el-timeline-item>
               </el-timeline>
@@ -440,7 +445,7 @@ const reviewActions = computed(() => {
             <el-timeline v-else>
               <el-timeline-item v-for="c in comments" :key="c.id" :timestamp="formatDateTime(c.createdAt)">
                 <div class="comment-author">
-                  {{ c.authorName ?? c.authorId }}
+                  {{ formatUserLabel({ name: c.authorName, username: c.authorUsername }) || c.authorId }}
                 </div>
                 <div style="white-space: pre-wrap">{{ c.content }}</div>
               </el-timeline-item>
@@ -465,7 +470,7 @@ const reviewActions = computed(() => {
             <el-timeline v-else>
               <el-timeline-item v-for="l in logs" :key="l.id" :timestamp="formatDateTime(l.createdAt)">
                 <div class="log-line">
-                  <span class="log-actor">{{ l.actorName ?? l.actorId }}</span>
+                  <span class="log-actor">{{ formatUserLabel({ name: l.actorName, username: l.actorUsername }) || l.actorId }}</span>
                   <span class="text-muted">·</span>
                   <span class="mono">{{ l.actionType }}</span>
                 </div>

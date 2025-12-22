@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { apiRequest } from '@/api/http'
+import { formatUserLabel } from '@/utils/userLabel'
 import type { Role, User } from '@/types/domain'
 
 type UserRow = Pick<User, 'id' | 'username' | 'name' | 'role' | 'createdAt'>
@@ -106,12 +107,11 @@ onMounted(() => {
       </template>
 
       <el-table :data="users" v-loading="loading" stripe style="width: 100%">
-        <el-table-column label="用户名" width="160">
+        <el-table-column label="姓名/工号" min-width="200">
           <template #default="{ row }">
-            <span class="mono">{{ row.username }}</span>
+            <span>{{ formatUserLabel(row) || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="姓名" min-width="160" prop="name" />
         <el-table-column label="角色" width="120" prop="role" />
         <el-table-column label="创建时间" width="180" prop="createdAt" />
         <el-table-column label="操作" width="120" fixed="right">
@@ -149,7 +149,11 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialog.visible" :title="`编辑用户：${editDialog.username}`" width="520px">
+    <el-dialog
+      v-model="editDialog.visible"
+      :title="`编辑用户：${formatUserLabel({ name: editDialog.name, username: editDialog.username }) || editDialog.username}`"
+      width="520px"
+    >
       <el-form label-position="top">
         <el-form-item label="姓名">
           <el-input v-model="editDialog.name" />
@@ -174,4 +178,3 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
-

@@ -35,8 +35,10 @@ export interface RequestItem {
   impactScope?: string
   requesterId: string
   requesterName?: string
+  requesterUsername?: string
   reviewerId?: string
   reviewerName?: string
+  reviewerUsername?: string
   decisionReason?: string
   suspendUntil?: string
   suspendCondition?: string
@@ -49,6 +51,7 @@ export interface CommentItem {
   requestId: string
   authorId: string
   authorName?: string
+  authorUsername?: string
   content: string
   createdAt: string
 }
@@ -60,6 +63,7 @@ export interface AuditLogItem {
   requestId: string
   actorId: string
   actorName?: string
+  actorUsername?: string
   actionType: AuditActionType
   fromValue?: unknown
   toValue?: unknown
@@ -72,6 +76,7 @@ export interface AttachmentItem {
   requestId: string
   uploaderId: string
   uploaderName?: string
+  uploaderUsername?: string
   filename: string
   mimeType: string
   sizeBytes: number

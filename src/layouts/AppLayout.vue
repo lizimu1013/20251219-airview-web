@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import logoUrl from '@/assets/logo.svg'
 import { House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { formatUserLabel } from '@/utils/userLabel'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -16,17 +17,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/admin')) return '/admin/users'
   return route.path
 })
-const userLabel = computed(() => {
-  const user = auth.user
-  if (!user) return ''
-  const rawName = String(user.name || '').trim()
-  const chineseParts = rawName.match(/[\u4e00-\u9fff]+/g)
-  const name = chineseParts?.length ? chineseParts.join('') : rawName
-  const username = String(user.username || '').trim()
-  if (!username) return name
-  if (!name) return username
-  return `${name}（${username}）`
-})
+const userLabel = computed(() => formatUserLabel(auth.user))
 
 function go(path: string) {
   router.push(path)

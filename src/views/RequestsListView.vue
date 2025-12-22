@@ -9,6 +9,7 @@ import RequestStatusTag from '@/components/RequestStatusTag.vue'
 import { apiRequest } from '@/api/http'
 import { canReview, isReviewerLike } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/time'
+import { formatUserLabel } from '@/utils/userLabel'
 import type { Category, Priority, RequestStatus, User } from '@/types/domain'
 
 const auth = useAuthStore()
@@ -42,7 +43,7 @@ async function loadRequesterOptions() {
     return
   }
   const res = await apiRequest<{ users: Pick<User, 'id' | 'name' | 'username' | 'role'>[] }>('/api/users/options')
-  requesterOptions.value = res.users.map((u) => ({ label: `${u.name}（${u.username}）`, value: u.id }))
+  requesterOptions.value = res.users.map((u) => ({ label: formatUserLabel(u), value: u.id }))
 }
 
 const { list, total, page, pageSize, loadingList } = storeToRefs(store)
@@ -319,8 +320,10 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="提交者" width="120">
-          <template #default="{ row }">{{ row.requesterName ?? '-' }}</template>
+        <el-table-column label="提交者" width="160">
+          <template #default="{ row }">
+            {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>

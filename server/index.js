@@ -189,8 +189,10 @@ function rowToRequest(row) {
     impactScope: row.impactScope ?? undefined,
     requesterId: row.requesterId,
     requesterName: row.requesterName,
+    requesterUsername: row.requesterUsername ?? undefined,
     reviewerId: row.reviewerId ?? undefined,
     reviewerName: row.reviewerName ?? undefined,
+    reviewerUsername: row.reviewerUsername ?? undefined,
     decisionReason: row.decisionReason ?? undefined,
     suspendUntil: row.suspendUntil ?? undefined,
     suspendCondition: row.suspendCondition ?? undefined,
@@ -287,6 +289,7 @@ function rowToAttachment(row) {
     requestId: row.requestId,
     uploaderId: row.uploaderId,
     uploaderName: row.uploaderName ?? undefined,
+    uploaderUsername: row.uploaderUsername ?? undefined,
     filename: row.filename,
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
@@ -608,7 +611,9 @@ app.get('/api/requests', authMiddleware, (req, res) => {
       SELECT
         r.*,
         u1.name AS requesterName,
-        u2.name AS reviewerName
+        u1.username AS requesterUsername,
+        u2.name AS reviewerName,
+        u2.username AS reviewerUsername
       FROM requests r
       JOIN users u1 ON u1.id = r.requesterId
       LEFT JOIN users u2 ON u2.id = r.reviewerId
@@ -678,7 +683,9 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
       SELECT
         r.*,
         u1.name AS requesterName,
-        u2.name AS reviewerName
+        u1.username AS requesterUsername,
+        u2.name AS reviewerName,
+        u2.username AS reviewerUsername
       FROM requests r
       JOIN users u1 ON u1.id = r.requesterId
       LEFT JOIN users u2 ON u2.id = r.reviewerId
@@ -693,7 +700,7 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
   const comments = db
     .prepare(
       `
-      SELECT c.*, u.name AS authorName
+      SELECT c.*, u.name AS authorName, u.username AS authorUsername
       FROM comments c
       JOIN users u ON u.id = c.authorId
       WHERE c.requestId = ?
@@ -701,12 +708,20 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
     `,
     )
     .all(id)
-    .map((c) => ({ id: c.id, requestId: c.requestId, authorId: c.authorId, authorName: c.authorName, content: c.content, createdAt: c.createdAt }))
+    .map((c) => ({
+      id: c.id,
+      requestId: c.requestId,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      authorUsername: c.authorUsername,
+      content: c.content,
+      createdAt: c.createdAt,
+    }))
 
   const auditLogs = db
     .prepare(
       `
-      SELECT l.*, u.name AS actorName
+      SELECT l.*, u.name AS actorName, u.username AS actorUsername
       FROM audit_logs l
       JOIN users u ON u.id = l.actorId
       WHERE l.requestId = ?
@@ -719,6 +734,7 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
       requestId: l.requestId,
       actorId: l.actorId,
       actorName: l.actorName,
+      actorUsername: l.actorUsername,
       actionType: l.actionType,
       fromValue: fromJson(l.fromJson, null),
       toValue: fromJson(l.toJson, null),
@@ -729,7 +745,7 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
   const attachments = db
     .prepare(
       `
-      SELECT a.*, u.name AS uploaderName
+      SELECT a.*, u.name AS uploaderName, u.username AS uploaderUsername
       FROM attachments a
       JOIN users u ON u.id = a.uploaderId
       WHERE a.requestId = ?
@@ -913,6 +929,7 @@ app.post('/api/requests/:id/attachments', authMiddleware, upload.single('file'),
     requestId: att.requestId,
     uploaderId: att.uploaderId,
     uploaderName: user.name,
+    uploaderUsername: user.username,
     filename: att.filename,
     mimeType: att.mimeType,
     sizeBytes: att.sizeBytes,

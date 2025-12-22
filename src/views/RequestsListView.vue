@@ -320,7 +320,7 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="提交者" width="160">
+        <el-table-column label="提交者" width="220">
           <template #default="{ row }">
             {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
           </template>

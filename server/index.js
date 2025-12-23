@@ -212,6 +212,8 @@ function rowToRequest(row) {
     reviewerId: row.reviewerId ?? undefined,
     reviewerName: row.reviewerName ?? undefined,
     reviewerUsername: row.reviewerUsername ?? undefined,
+    lastActorName: row.lastActorName ?? undefined,
+    lastActorUsername: row.lastActorUsername ?? undefined,
     decisionReason: row.decisionReason ?? undefined,
     suspendUntil: row.suspendUntil ?? undefined,
     suspendCondition: row.suspendCondition ?? undefined,
@@ -740,10 +742,16 @@ app.get('/api/requests', authMiddleware, (req, res) => {
         u1.name AS requesterName,
         u1.username AS requesterUsername,
         u2.name AS reviewerName,
-        u2.username AS reviewerUsername
+        u2.username AS reviewerUsername,
+        u3.name AS lastActorName,
+        u3.username AS lastActorUsername
       FROM requests r
       JOIN users u1 ON u1.id = r.requesterId
       LEFT JOIN users u2 ON u2.id = r.reviewerId
+      LEFT JOIN audit_logs llast
+        ON llast.requestId = r.id
+       AND llast.createdAt = (SELECT MAX(createdAt) FROM audit_logs WHERE requestId = r.id)
+      LEFT JOIN users u3 ON u3.id = llast.actorId
       ${whereSql}
       ORDER BY r.updatedAt DESC
       LIMIT @limit OFFSET @offset

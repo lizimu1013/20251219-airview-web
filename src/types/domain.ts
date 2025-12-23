@@ -39,6 +39,8 @@ export interface RequestItem {
   reviewerId?: string
   reviewerName?: string
   reviewerUsername?: string
+  lastActorName?: string
+  lastActorUsername?: string
   decisionReason?: string
   suspendUntil?: string
   suspendCondition?: string

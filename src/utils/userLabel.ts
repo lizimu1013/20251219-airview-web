@@ -8,5 +8,5 @@ export function formatUserLabel(user: UserLike) {
   const username = String(user.username || '').trim()
   if (!name) return username
   if (!username) return name
-  return `${name}（${username}）`
+  return `${name} ${username}`
 }

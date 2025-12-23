@@ -326,6 +326,14 @@ onMounted(() => {
             {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
           </template>
         </el-table-column>
+        <el-table-column label="最后修改人" width="220">
+          <template #default="{ row }">
+            {{ formatUserLabel({ name: row.lastActorName, username: row.lastActorUsername }) || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="最后修改时间" width="150">
+          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>
         </el-table-column>

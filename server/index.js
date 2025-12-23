@@ -201,6 +201,21 @@ function rowToRequest(row) {
   }
 }
 
+function rowToBoardMessage(row, viewer) {
+  if (!row) return null
+  const anonymous = Boolean(row.isAnonymous)
+  const revealAuthor = !anonymous || viewer?.role === 'admin'
+  return {
+    id: row.id,
+    content: row.content,
+    createdAt: row.createdAt,
+    anonymous,
+    pinned: Boolean(row.isPinned),
+    authorName: revealAuthor ? row.authorName ?? undefined : undefined,
+    authorUsername: revealAuthor ? row.authorUsername ?? undefined : undefined,
+  }
+}
+
 function ensureAdminSeed() {
   const count = db.prepare('SELECT COUNT(1) AS c FROM users').get().c
   if (count > 0) return
@@ -558,6 +573,96 @@ app.get('/api/dashboard/trend', authMiddleware, (req, res) => {
   }
 
   return res.json({ dates, counts })
+})
+
+app.get('/api/dashboard/messages', authMiddleware, (req, res) => {
+  const limitRaw = Number(req.query.limit ?? 20)
+  const limit = Math.min(50, Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 20))
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        m.*,
+        u.name AS authorName,
+        u.username AS authorUsername
+      FROM board_messages m
+      LEFT JOIN users u ON u.id = m.authorId
+      ORDER BY m.isPinned DESC, m.createdAt DESC
+      LIMIT ?
+      `,
+    )
+    .all(limit)
+  const messages = rows.map((row) => rowToBoardMessage(row, req.user))
+  return res.json({ messages })
+})
+
+app.post('/api/dashboard/messages', authMiddleware, (req, res) => {
+  const content = String(req.body?.content || '').trim()
+  const anonymous = Boolean(req.body?.anonymous)
+  if (!content) return res.status(400).json({ message: 'content required' })
+  if (content.length > 500) return res.status(400).json({ message: 'content too long' })
+
+  const message = {
+    id: nanoid(),
+    content,
+    authorId: req.user.id,
+    isAnonymous: anonymous ? 1 : 0,
+    isPinned: 0,
+    createdAt: nowIso(),
+  }
+
+  db.prepare(
+    'INSERT INTO board_messages (id, content, authorId, isAnonymous, isPinned, createdAt) VALUES (@id, @content, @authorId, @isAnonymous, @isPinned, @createdAt)',
+  ).run(message)
+
+  const row = db
+    .prepare(
+      `
+      SELECT
+        m.*,
+        u.name AS authorName,
+        u.username AS authorUsername
+      FROM board_messages m
+      LEFT JOIN users u ON u.id = m.authorId
+      WHERE m.id = ?
+      `,
+    )
+    .get(message.id)
+
+  return res.json({ message: rowToBoardMessage(row, req.user) })
+})
+
+app.patch('/api/dashboard/messages/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+  const id = req.params.id
+  const pinned = req.body?.pinned
+  if (pinned == null) return res.status(400).json({ message: 'pinned required' })
+  const value = pinned ? 1 : 0
+  const row = db.prepare('SELECT id FROM board_messages WHERE id = ?').get(id)
+  if (!row) return res.status(404).json({ message: 'not found' })
+  db.prepare('UPDATE board_messages SET isPinned = ? WHERE id = ?').run(value, id)
+
+  const updated = db
+    .prepare(
+      `
+      SELECT
+        m.*,
+        u.name AS authorName,
+        u.username AS authorUsername
+      FROM board_messages m
+      LEFT JOIN users u ON u.id = m.authorId
+      WHERE m.id = ?
+      `,
+    )
+    .get(id)
+  return res.json({ message: rowToBoardMessage(updated, req.user) })
+})
+
+app.delete('/api/dashboard/messages/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+  const id = req.params.id
+  const row = db.prepare('SELECT id FROM board_messages WHERE id = ?').get(id)
+  if (!row) return res.status(404).json({ message: 'not found' })
+  db.prepare('DELETE FROM board_messages WHERE id = ?').run(id)
+  return res.json({ ok: true })
 })
 
 app.get('/api/requests', authMiddleware, (req, res) => {

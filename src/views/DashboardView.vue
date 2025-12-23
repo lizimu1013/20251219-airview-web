@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRequestsStore } from '@/stores/requests'
+import { useAuthStore } from '@/stores/auth'
 import { apiRequest } from '@/api/http'
+import { formatDateTime } from '@/utils/time'
+import { formatUserLabel } from '@/utils/userLabel'
 import OverviewLineChart from '@/components/charts/OverviewLineChart.vue'
 import { RefreshRight } from '@element-plus/icons-vue'
 import {
@@ -15,8 +19,10 @@ import {
 } from '@element-plus/icons-vue'
 
 const reqsStore = useRequestsStore()
+const authStore = useAuthStore()
 
 const counts = computed(() => reqsStore.summary)
+const isAdmin = computed(() => authStore.user?.role === 'admin')
 
 const total = computed(() => counts.value.total || 0)
 const cards = computed(() => [
@@ -54,6 +60,24 @@ const trendLabels = computed(() => trend.value.dates.map((d) => d.slice(5)))
 const trendSeries = computed(() => [{ name: '新增需求', data: trend.value.counts, color: '#409EFF' }])
 const hasTrend = computed(() => trend.value.dates.length > 0)
 
+type BoardMessage = {
+  id: string
+  content: string
+  createdAt: string
+  anonymous: boolean
+  pinned: boolean
+  authorName?: string
+  authorUsername?: string
+}
+
+const messages = ref<BoardMessage[]>([])
+const loadingMessages = ref(false)
+const postingMessage = ref(false)
+const messageText = ref('')
+const messageAnonymous = ref(false)
+const pinningId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
+
 async function loadSummary() {
   const res = await apiRequest<{ counts: typeof reqsStore.summary }>('/api/dashboard/summary')
   reqsStore.setSummary(res.counts)
@@ -70,9 +94,80 @@ async function loadTrend() {
   }
 }
 
+async function loadMessages() {
+  loadingMessages.value = true
+  try {
+    const res = await apiRequest<{ messages: BoardMessage[] }>('/api/dashboard/messages?limit=30')
+    messages.value = res.messages ?? []
+  } finally {
+    loadingMessages.value = false
+  }
+}
+
+async function postMessage() {
+  const content = messageText.value.trim()
+  if (!content) {
+    ElMessage.warning('请输入留言内容')
+    return
+  }
+  postingMessage.value = true
+  try {
+    const res = await apiRequest<{ message: BoardMessage }>('/api/dashboard/messages', {
+      method: 'POST',
+      body: { content, anonymous: messageAnonymous.value },
+    })
+    if (res.message) {
+      messageText.value = ''
+      messageAnonymous.value = false
+      await loadMessages()
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '留言失败')
+  } finally {
+    postingMessage.value = false
+  }
+}
+
+function formatMessageAuthor(message: BoardMessage) {
+  if (!message.authorName && !message.authorUsername) return message.anonymous ? '匿名' : '-'
+  const label = formatUserLabel({ name: message.authorName, username: message.authorUsername }) || '-'
+  return message.anonymous ? `${label}（匿名）` : label
+}
+
+async function togglePinned(message: BoardMessage) {
+  if (!isAdmin.value) return
+  pinningId.value = message.id
+  try {
+    await apiRequest<{ message: BoardMessage }>(`/api/dashboard/messages/${message.id}`, {
+      method: 'PATCH',
+      body: { pinned: !message.pinned },
+    })
+    await loadMessages()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '置顶操作失败')
+  } finally {
+    pinningId.value = null
+  }
+}
+
+async function deleteMessage(message: BoardMessage) {
+  if (!isAdmin.value) return
+  if (!window.confirm('确认删除该留言？')) return
+  deletingId.value = message.id
+  try {
+    await apiRequest(`/api/dashboard/messages/${message.id}`, { method: 'DELETE' })
+    messages.value = messages.value.filter((item) => item.id !== message.id)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  } finally {
+    deletingId.value = null
+  }
+}
+
 onMounted(() => {
   loadSummary().catch(() => undefined)
   loadTrend().catch(() => undefined)
+  loadMessages().catch(() => undefined)
 })
 </script>
 
@@ -142,11 +237,61 @@ onMounted(() => {
         <el-card>
           <template #header>
             <div class="app-card-header">
-              <div>说明</div>
+              <div>留言板</div>
             </div>
           </template>
-          <div class="text-muted">
-            支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
+          <div class="board">
+            <div class="board-list">
+              <el-skeleton v-if="loadingMessages" animated :rows="4" />
+              <el-empty v-else-if="!messages.length" description="暂无留言" />
+              <div v-else class="board-items">
+                <div v-for="m in messages" :key="m.id" class="board-item">
+                  <div class="board-meta">
+                    <div class="board-left">
+                      <span class="board-author">{{ formatMessageAuthor(m) }}</span>
+                      <el-tag v-if="m.pinned" size="small" type="warning" effect="plain">置顶</el-tag>
+                      <el-tag v-if="m.anonymous" size="small" type="info" effect="plain">匿名</el-tag>
+                    </div>
+                    <div class="board-right">
+                      <span class="text-muted">{{ formatDateTime(m.createdAt) }}</span>
+                      <el-space v-if="isAdmin" :size="6">
+                        <el-button
+                          text
+                          size="small"
+                          :loading="pinningId === m.id"
+                          @click="togglePinned(m)"
+                        >
+                          {{ m.pinned ? '取消置顶' : '置顶' }}
+                        </el-button>
+                        <el-button
+                          text
+                          size="small"
+                          type="danger"
+                          :loading="deletingId === m.id"
+                          @click="deleteMessage(m)"
+                        >
+                          删除
+                        </el-button>
+                      </el-space>
+                    </div>
+                  </div>
+                  <div class="board-content">{{ m.content }}</div>
+                </div>
+              </div>
+            </div>
+            <el-divider />
+            <el-input
+              v-model="messageText"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+              placeholder="写下你的留言..."
+            />
+            <div class="board-actions">
+              <el-checkbox v-model="messageAnonymous">匿名留言</el-checkbox>
+              <el-button type="primary" :loading="postingMessage" @click="postMessage">留言</el-button>
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -249,5 +394,63 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.board-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+.board-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-item {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.board-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.board-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.board-left,
+.board-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.board-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.board-author {
+  font-weight: 600;
+  color: #303133;
+}
+.board-content {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  color: #606266;
+  line-height: 1.5;
 }
 </style>

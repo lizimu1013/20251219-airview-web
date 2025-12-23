@@ -30,7 +30,7 @@ const form = reactive({
   acceptanceCriteria: '',
   category: '' as Category | '',
   priority: '' as Priority | '',
-  tagsText: '',
+  tags: [] as string[],
   linksText: '',
   impactScope: '',
   createdAt: '',
@@ -54,7 +54,7 @@ watchEffect(() => {
   form.acceptanceCriteria = source.value.acceptanceCriteria ?? ''
   form.category = (source.value.category ?? '') as Category | ''
   form.priority = (source.value.priority ?? '') as Priority | ''
-  form.tagsText = (source.value.tags ?? []).join(', ')
+  form.tags = [...(source.value.tags ?? [])]
   form.linksText = (source.value.links ?? []).join('\n')
   form.impactScope = source.value.impactScope ?? ''
   form.createdAt = source.value.createdAt ?? ''
@@ -66,12 +66,19 @@ const rules = {
   why: [{ required: true, message: '请输入期望价值/收益（Why）', trigger: 'blur' }],
 }
 
-function parseTags(text: string) {
-  return text
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 20)
+const tagOptions = ['AI RAN', 'CellFree', 'MIMO', '其他']
+
+function normalizeTags(tags: string[]) {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const raw of tags) {
+    const value = raw.trim()
+    if (!value || seen.has(value)) continue
+    seen.add(value)
+    result.push(value)
+    if (result.length >= 20) break
+  }
+  return result
 }
 
 function parseLinks(text: string) {
@@ -99,7 +106,7 @@ async function onSubmit() {
     acceptanceCriteria: form.acceptanceCriteria || undefined,
     category: (form.category || undefined) as Category | undefined,
     priority: (form.priority || undefined) as Priority | undefined,
-    tags: parseTags(form.tagsText),
+    tags: normalizeTags(form.tags),
     links: parseLinks(form.linksText),
     impactScope: form.impactScope || undefined,
     createdAt: isEdit.value && isAdmin.value ? form.createdAt || undefined : undefined,
@@ -163,6 +170,7 @@ onMounted(() => {
                 <el-option label="功能" value="功能" />
                 <el-option label="优化" value="优化" />
                 <el-option label="缺陷" value="缺陷" />
+                <el-option label="性能" value="性能" />
                 <el-option label="咨询" value="咨询" />
               </el-select>
             </el-form-item>
@@ -170,16 +178,27 @@ onMounted(() => {
           <el-col :span="6">
             <el-form-item label="优先级">
               <el-select v-model="form.priority" clearable placeholder="可选">
-                <el-option label="P0" value="P0" />
-                <el-option label="P1" value="P1" />
-                <el-option label="P2" value="P2" />
-                <el-option label="P3" value="P3" />
+                <el-option label="P0（天级出结果）" value="P0" />
+                <el-option label="P1（周级出结果）" value="P1" />
+                <el-option label="P2（月级出结果）" value="P2" />
+                <el-option label="P3（中长期能力规划）" value="P3" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="标签（逗号分隔）">
-              <el-input v-model="form.tagsText" placeholder="例如：MVP, 列表, 体验" />
+            <el-form-item label="标签（可选）">
+              <el-select
+                v-model="form.tags"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                clearable
+                placeholder="选择或输入标签"
+                style="width: 100%"
+              >
+                <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>

@@ -35,7 +35,7 @@ function onLogout() {
     <el-aside :width="collapsed ? '64px' : '210px'" class="aside">
       <div class="logo" :data-collapsed="collapsed" @click="go('/requests')">
         <img class="logo-img" :src="logoUrl" alt="URM" />
-        <span class="logo-text" v-if="!collapsed">需求管理</span>
+        <span class="logo-text" v-if="!collapsed">AIRVIEW</span>
       </div>
       <el-menu :default-active="activeMenu" class="menu" :collapse="collapsed" router>
         <el-menu-item index="/dashboard">
@@ -65,7 +65,7 @@ function onLogout() {
           </el-button>
           <div class="breadcrumb">
             <el-breadcrumb separator="/">
-              <el-breadcrumb-item>用户需求管理</el-breadcrumb-item>
+              <el-breadcrumb-item>AIRVIEW需求管理平台</el-breadcrumb-item>
               <el-breadcrumb-item v-if="route.name === 'dashboard'">概览</el-breadcrumb-item>
               <el-breadcrumb-item v-else-if="route.path.startsWith('/requests')">需求</el-breadcrumb-item>
             </el-breadcrumb>

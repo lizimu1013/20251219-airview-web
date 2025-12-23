@@ -146,7 +146,7 @@ onMounted(() => {
             </div>
           </template>
           <div class="text-muted">
-            支持提交需求、评审接纳/挂起/拒绝/待补充，以及审计日志与评论。
+            欢迎大家使用
           </div>
         </el-card>
       </el-col>

@@ -87,13 +87,29 @@ export function migrate(db) {
       FOREIGN KEY (actorId) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS board_messages (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      authorId TEXT,
+      isAnonymous INTEGER NOT NULL DEFAULT 0,
+      isPinned INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (authorId) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
     CREATE INDEX IF NOT EXISTS idx_requests_requester ON requests(requesterId);
     CREATE INDEX IF NOT EXISTS idx_requests_updatedAt ON requests(updatedAt);
     CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(requestId);
     CREATE INDEX IF NOT EXISTS idx_audit_request ON audit_logs(requestId);
     CREATE INDEX IF NOT EXISTS idx_attachments_request ON attachments(requestId);
+    CREATE INDEX IF NOT EXISTS idx_board_messages_createdAt ON board_messages(createdAt);
   `)
+
+  const boardColumns = db.prepare('PRAGMA table_info(board_messages)').all().map((col) => col.name)
+  if (!boardColumns.includes('isPinned')) {
+    db.exec('ALTER TABLE board_messages ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0')
+  }
 }
 
 export function toJson(value) {

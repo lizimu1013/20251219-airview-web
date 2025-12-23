@@ -67,7 +67,6 @@ const trendLabels = computed(() => trend.value.dates.map((d) => d.slice(5)))
 const trendSeries = computed(() => [
   { name: '新增需求', data: trend.value.created, color: '#409EFF' },
   { name: '已接纳', data: trend.value.accepted, color: '#67C23A' },
-  { name: '已拒绝', data: trend.value.rejected, color: '#F56C6C' },
   { name: '已关闭', data: trend.value.closed, color: '#909399' },
 ])
 const hasTrend = computed(() => trend.value.dates.length > 0)

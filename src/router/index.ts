@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { apiRequest } from '@/api/http'
 import type { Role } from '@/types/domain'
 
 const router = createRouter({
@@ -22,6 +23,12 @@ const router = createRouter({
           component: () => import('@/views/AdminUsersView.vue'),
           meta: { roles: ['admin'] satisfies Role[] },
         },
+        {
+          path: 'admin/visits',
+          name: 'admin-visits',
+          component: () => import('@/views/AdminVisitsView.vue'),
+          meta: { roles: ['admin'] satisfies Role[] },
+        },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
@@ -40,6 +47,16 @@ router.beforeEach(async (to) => {
     if (!role || !roles.includes(role)) return { path: '/requests' }
   }
   return true
+})
+
+router.afterEach((to, from) => {
+  if (to.fullPath === from.fullPath) return
+  if (to.path === '/login') return
+  const auth = useAuthStore()
+  if (!auth.isAuthed) return
+  const match = to.matched[to.matched.length - 1]
+  const path = match?.path || to.path
+  apiRequest('/api/track/visit', { method: 'POST', body: { path } }).catch(() => undefined)
 })
 
 export default router

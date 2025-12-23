@@ -63,6 +63,13 @@ function formatDateStamp(date = new Date()) {
   return `${y}${m}${d}`
 }
 
+function formatDateKey(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function generateRequestId(db, date = new Date()) {
   const stamp = formatDateStamp(date)
   const row = db
@@ -596,6 +603,113 @@ app.get('/api/dashboard/trend', authMiddleware, (req, res) => {
   }
 
   return res.json({ dates, counts })
+})
+
+app.post('/api/track/visit', authMiddleware, (req, res) => {
+  const rawPath = String(req.body?.path || '').trim()
+  if (!rawPath || !rawPath.startsWith('/')) return res.status(400).json({ message: 'path required' })
+  const pathKey = rawPath.split('?')[0].trim()
+  const day = formatDateKey()
+  const updatedAt = nowIso()
+  db.prepare(
+    `
+    INSERT INTO visit_stats (day, path, count, updatedAt)
+    VALUES (@day, @path, 1, @updatedAt)
+    ON CONFLICT(day, path)
+    DO UPDATE SET count = count + 1, updatedAt = excluded.updatedAt
+  `,
+  ).run({ day, path: pathKey, updatedAt })
+  db.prepare(
+    `
+    INSERT INTO visit_stats_user (day, path, userId, role, count, updatedAt)
+    VALUES (@day, @path, @userId, @role, 1, @updatedAt)
+    ON CONFLICT(day, path, userId, role)
+    DO UPDATE SET count = count + 1, updatedAt = excluded.updatedAt
+  `,
+  ).run({ day, path: pathKey, userId: req.user.id, role: req.user.role, updatedAt })
+  return res.json({ ok: true })
+})
+
+app.get('/api/admin/visits', authMiddleware, requireRole(['admin']), (req, res) => {
+  const daysRaw = Number(req.query.days ?? 14)
+  const days = Math.min(90, Math.max(7, Number.isFinite(daysRaw) ? Math.floor(daysRaw) : 14))
+
+  const end = new Date()
+  end.setHours(0, 0, 0, 0)
+  const start = new Date(end)
+  start.setDate(start.getDate() - (days - 1))
+  const startKey = formatDateKey(start)
+
+  const rows = db
+    .prepare(
+      `
+      SELECT day, SUM(count) AS total
+      FROM visit_stats
+      WHERE day >= ?
+      GROUP BY day
+      ORDER BY day ASC
+    `,
+    )
+    .all(startKey)
+
+  const byDate = new Map(rows.map((r) => [r.day, r.total]))
+  const dates = []
+  const counts = []
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const key = formatDateKey(d)
+    dates.push(key)
+    counts.push(byDate.get(key) ?? 0)
+  }
+
+  const pages = db
+    .prepare(
+      `
+      SELECT path, SUM(count) AS total
+      FROM visit_stats
+      WHERE day >= ?
+      GROUP BY path
+      ORDER BY total DESC
+      LIMIT 30
+    `,
+    )
+    .all(startKey)
+
+  const roles = db
+    .prepare(
+      `
+      SELECT role, SUM(count) AS total
+      FROM visit_stats_user
+      WHERE day >= ?
+      GROUP BY role
+      ORDER BY total DESC
+    `,
+    )
+    .all(startKey)
+
+  const users = db
+    .prepare(
+      `
+      SELECT v.userId, u.name, u.username, u.role, SUM(v.count) AS total
+      FROM visit_stats_user v
+      JOIN users u ON u.id = v.userId
+      WHERE v.day >= ?
+      GROUP BY v.userId, u.name, u.username, u.role
+      ORDER BY total DESC
+      LIMIT 20
+    `,
+    )
+    .all(startKey)
+
+  return res.json({
+    range: { start: dates[0], end: dates[dates.length - 1], days },
+    dates,
+    counts,
+    pages,
+    roles,
+    users,
+  })
 })
 
 app.get('/api/dashboard/messages', authMiddleware, (req, res) => {

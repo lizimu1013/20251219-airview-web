@@ -97,6 +97,25 @@ export function migrate(db) {
       FOREIGN KEY (authorId) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS visit_stats (
+      day TEXT NOT NULL,
+      path TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (day, path)
+    );
+
+    CREATE TABLE IF NOT EXISTS visit_stats_user (
+      day TEXT NOT NULL,
+      path TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('requester','reviewer','admin')),
+      count INTEGER NOT NULL DEFAULT 0,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (day, path, userId, role),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
     CREATE INDEX IF NOT EXISTS idx_requests_requester ON requests(requesterId);
     CREATE INDEX IF NOT EXISTS idx_requests_updatedAt ON requests(updatedAt);
@@ -104,6 +123,10 @@ export function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_audit_request ON audit_logs(requestId);
     CREATE INDEX IF NOT EXISTS idx_attachments_request ON attachments(requestId);
     CREATE INDEX IF NOT EXISTS idx_board_messages_createdAt ON board_messages(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_visit_stats_day ON visit_stats(day);
+    CREATE INDEX IF NOT EXISTS idx_visit_stats_user_day ON visit_stats_user(day);
+    CREATE INDEX IF NOT EXISTS idx_visit_stats_user_user ON visit_stats_user(userId);
+    CREATE INDEX IF NOT EXISTS idx_visit_stats_user_role ON visit_stats_user(role);
   `)
 
   const boardColumns = db.prepare('PRAGMA table_info(board_messages)').all().map((col) => col.name)

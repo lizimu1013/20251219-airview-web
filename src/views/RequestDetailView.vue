@@ -55,6 +55,30 @@ async function onAddComment() {
   }
 }
 
+async function onDeleteComment(commentId: string) {
+  if (!req.value) return
+  try {
+    await ElMessageBox.confirm('确认删除该评论？', '删除评论', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await store.deleteComment(req.value.id, commentId)
+    ElMessage.success('已删除评论')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+function canDeleteComment(authorId?: string) {
+  if (!me.value || !authorId) return false
+  return me.value.id === authorId || me.value.role === 'admin'
+}
+
 function onEdit() {
   if (!req.value) return
   router.push(`/requests/${req.value.id}/edit`)
@@ -444,8 +468,19 @@ const reviewActions = computed(() => {
             <div v-if="!comments.length" class="text-muted">暂无评论</div>
             <el-timeline v-else>
               <el-timeline-item v-for="c in comments" :key="c.id" :timestamp="formatDateTime(c.createdAt)">
-                <div class="comment-author">
-                  {{ formatUserLabel({ name: c.authorName, username: c.authorUsername }) || c.authorId }}
+                <div class="comment-header">
+                  <div class="comment-author">
+                    {{ formatUserLabel({ name: c.authorName, username: c.authorUsername }) || c.authorId }}
+                  </div>
+                  <el-button
+                    v-if="canDeleteComment(c.authorId)"
+                    text
+                    size="small"
+                    type="danger"
+                    @click="onDeleteComment(c.id)"
+                  >
+                    删除
+                  </el-button>
                 </div>
                 <div style="white-space: pre-wrap">{{ c.content }}</div>
               </el-timeline-item>
@@ -543,6 +578,12 @@ const reviewActions = computed(() => {
 }
 .comment-author {
   font-weight: 700;
+}
+.comment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 6px;
 }
 .log-line {

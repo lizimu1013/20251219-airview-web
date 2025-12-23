@@ -118,6 +118,11 @@ export const useRequestsStore = defineStore('requests', () => {
     await fetchDetail(requestId)
   }
 
+  async function deleteComment(requestId: string, commentId: string) {
+    await apiRequest<{ ok: true }>(`/api/requests/${requestId}/comments/${commentId}`, { method: 'DELETE' })
+    await fetchDetail(requestId)
+  }
+
   async function changeStatus(requestId: string, payload: { toStatus: RequestStatus; reason: string; suspendUntil?: string; suspendCondition?: string }) {
     await apiRequest<{ ok: true }>(`/api/requests/${requestId}/status`, { method: 'POST', body: payload })
     await fetchDetail(requestId)
@@ -158,6 +163,7 @@ export const useRequestsStore = defineStore('requests', () => {
     create,
     update,
     addComment,
+    deleteComment,
     changeStatus,
     resubmit,
     uploadAttachment,

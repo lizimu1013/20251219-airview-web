@@ -934,6 +934,27 @@ app.post('/api/requests/:id/comments', authMiddleware, (req, res) => {
   return res.json({ ok: true })
 })
 
+app.delete('/api/requests/:id/comments/:commentId', authMiddleware, (req, res) => {
+  const user = req.user
+  const requestId = req.params.id
+  const commentId = req.params.commentId
+
+  const requestRow = db.prepare('SELECT * FROM requests WHERE id = ?').get(requestId)
+  if (!requestRow) return res.status(404).json({ message: 'not found' })
+  const request = rowToRequest({ ...requestRow, requesterName: '', reviewerName: '' })
+  if (!canViewRequest(user, request)) return res.status(403).json({ message: 'forbidden' })
+
+  const comment = db.prepare('SELECT * FROM comments WHERE id = ? AND requestId = ?').get(commentId, requestId)
+  if (!comment) return res.status(404).json({ message: 'comment not found' })
+  if (comment.authorId !== user.id && user.role !== 'admin') return res.status(403).json({ message: 'forbidden' })
+
+  db.prepare('DELETE FROM comments WHERE id = ?').run(commentId)
+  const t = nowIso()
+  db.prepare('UPDATE requests SET updatedAt=? WHERE id=?').run(t, requestId)
+  addAudit({ requestId, actorId: user.id, actionType: 'comment', note: '删除评论' })
+  return res.json({ ok: true })
+})
+
 app.post('/api/requests/:id/status', authMiddleware, (req, res) => {
   const user = req.user
   if (!canReview(user)) return res.status(403).json({ message: 'forbidden' })

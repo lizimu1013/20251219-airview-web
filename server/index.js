@@ -581,7 +581,7 @@ app.get('/api/dashboard/trend', authMiddleware, (req, res) => {
   start.setUTCDate(start.getUTCDate() - (days - 1))
   const startIso = start.toISOString()
 
-  const rows = db
+  const createdRows = db
     .prepare(
       `SELECT substr(createdAt, 1, 10) as d, COUNT(1) as c
        FROM requests
@@ -591,18 +591,52 @@ app.get('/api/dashboard/trend', authMiddleware, (req, res) => {
     )
     .all(startIso)
 
-  const byDate = new Map(rows.map((r) => [r.d, r.c]))
+  const statusRows = db
+    .prepare(
+      `
+      SELECT
+        substr(createdAt, 1, 10) as d,
+        SUM(CASE WHEN actionType='status_change' AND toJson LIKE '%"status":"Accepted"%' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN actionType='status_change' AND toJson LIKE '%"status":"Rejected"%' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN actionType='status_change' AND toJson LIKE '%"status":"Closed"%' THEN 1 ELSE 0 END) as closed
+      FROM audit_logs
+      WHERE createdAt >= ?
+      GROUP BY d
+      ORDER BY d ASC
+    `,
+    )
+    .all(startIso)
+
+  const createdMap = new Map(createdRows.map((r) => [r.d, r.c]))
+  const statusMap = new Map(
+    statusRows.map((r) => [
+      r.d,
+      {
+        accepted: Number(r.accepted) || 0,
+        rejected: Number(r.rejected) || 0,
+        closed: Number(r.closed) || 0,
+      },
+    ]),
+  )
+
   const dates = []
-  const counts = []
+  const created = []
+  const accepted = []
+  const rejected = []
+  const closed = []
   for (let i = 0; i < days; i += 1) {
     const d = new Date(start)
     d.setUTCDate(start.getUTCDate() + i)
     const key = d.toISOString().slice(0, 10)
+    const status = statusMap.get(key)
     dates.push(key)
-    counts.push(byDate.get(key) ?? 0)
+    created.push(createdMap.get(key) ?? 0)
+    accepted.push(status?.accepted ?? 0)
+    rejected.push(status?.rejected ?? 0)
+    closed.push(status?.closed ?? 0)
   }
 
-  return res.json({ dates, counts })
+  return res.json({ dates, created, accepted, rejected, closed })
 })
 
 app.post('/api/track/visit', authMiddleware, (req, res) => {

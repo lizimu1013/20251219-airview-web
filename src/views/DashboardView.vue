@@ -48,16 +48,28 @@ const distribution = computed(() => {
   return rows.map((r) => ({ ...r, percent: t ? Math.round((r.value / t) * 100) : 0 }))
 })
 
-const trend = ref<{ dates: string[]; counts: number[] }>({ dates: [], counts: [] })
+const trend = ref<{
+  dates: string[]
+  created: number[]
+  accepted: number[]
+  rejected: number[]
+  closed: number[]
+}>({ dates: [], created: [], accepted: [], rejected: [], closed: [] })
 const loadingTrend = ref(false)
 const trendChartKey = ref(0)
+const trendDays = ref(14)
 
 const trendRange = computed(() => {
   if (!trend.value.dates.length) return ''
   return `${trend.value.dates[0]} ~ ${trend.value.dates[trend.value.dates.length - 1]}`
 })
 const trendLabels = computed(() => trend.value.dates.map((d) => d.slice(5)))
-const trendSeries = computed(() => [{ name: '新增需求', data: trend.value.counts, color: '#409EFF' }])
+const trendSeries = computed(() => [
+  { name: '新增需求', data: trend.value.created, color: '#409EFF' },
+  { name: '已接纳', data: trend.value.accepted, color: '#67C23A' },
+  { name: '已拒绝', data: trend.value.rejected, color: '#F56C6C' },
+  { name: '已关闭', data: trend.value.closed, color: '#909399' },
+])
 const hasTrend = computed(() => trend.value.dates.length > 0)
 
 type BoardMessage = {
@@ -87,7 +99,13 @@ async function loadSummary() {
 async function loadTrend() {
   loadingTrend.value = true
   try {
-    const res = await apiRequest<{ dates: string[]; counts: number[] }>('/api/dashboard/trend?days=14')
+    const res = await apiRequest<{
+      dates: string[]
+      created: number[]
+      accepted: number[]
+      rejected: number[]
+      closed: number[]
+    }>(`/api/dashboard/trend?days=${trendDays.value}`)
     trend.value = res
     trendChartKey.value += 1
   } finally {
@@ -198,7 +216,12 @@ onMounted(() => {
             <div class="app-card-header">
               <div>需求趋势</div>
               <div class="trend-right">
-                <div class="text-muted">{{ trendRange || '近 14 天' }}</div>
+                <el-select v-model="trendDays" size="small" style="width: 110px" @change="loadTrend">
+                  <el-option label="近 7 天" :value="7" />
+                  <el-option label="近 14 天" :value="14" />
+                  <el-option label="近 30 天" :value="30" />
+                </el-select>
+                <div class="text-muted">{{ trendRange || `近 ${trendDays} 天` }}</div>
                 <el-button text size="small" @click="trendChartKey += 1">
                   <el-icon><RefreshRight /></el-icon>
                   重播

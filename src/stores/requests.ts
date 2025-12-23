@@ -10,6 +10,8 @@ export type RequestsQuery = Partial<{
   category: Category
   tag: string
   requesterId: string
+  sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'
+  sortOrder: 'asc' | 'desc'
   page: number
   pageSize: number
 }>
@@ -68,6 +70,8 @@ export const useRequestsStore = defineStore('requests', () => {
       if (query.category) search.set('category', query.category)
       if (query.tag) search.set('tag', query.tag)
       if (query.requesterId) search.set('requesterId', query.requesterId)
+      if (query.sortBy) search.set('sortBy', query.sortBy)
+      if (query.sortOrder) search.set('sortOrder', query.sortOrder)
       search.set('page', String(query.page ?? page.value))
       search.set('pageSize', String(query.pageSize ?? pageSize.value))
 

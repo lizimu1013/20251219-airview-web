@@ -845,6 +845,8 @@ app.get('/api/requests', authMiddleware, (req, res) => {
   const category = String(req.query.category || '').trim()
   const tag = String(req.query.tag || '').trim()
   const requesterId = String(req.query.requesterId || '').trim()
+  const sortByRaw = String(req.query.sortBy || '').trim()
+  const sortOrderRaw = String(req.query.sortOrder || '').trim()
   const page = Math.max(1, Number(req.query.page || 1))
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize || 10)))
 
@@ -882,6 +884,17 @@ app.get('/api/requests', authMiddleware, (req, res) => {
   const total = db.prepare(`SELECT COUNT(1) AS c FROM requests r ${whereSql}`).get(params).c
   const offset = (page - 1) * pageSize
 
+  const sortMap = {
+    createdAt: 'r.createdAt',
+    updatedAt: 'r.updatedAt',
+    priority:
+      "CASE r.priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 9 END",
+    status:
+      "CASE r.status WHEN 'Submitted' THEN 0 WHEN 'NeedInfo' THEN 1 WHEN 'Accepted' THEN 2 WHEN 'Suspended' THEN 3 WHEN 'Rejected' THEN 4 WHEN 'Closed' THEN 5 ELSE 9 END",
+  }
+  const sortBy = sortMap[sortByRaw] || 'r.createdAt'
+  const sortOrder = sortOrderRaw === 'asc' ? 'ASC' : 'DESC'
+
   const list = db
     .prepare(
       `
@@ -901,7 +914,7 @@ app.get('/api/requests', authMiddleware, (req, res) => {
        AND llast.createdAt = (SELECT MAX(createdAt) FROM audit_logs WHERE requestId = r.id)
       LEFT JOIN users u3 ON u3.id = llast.actorId
       ${whereSql}
-      ORDER BY r.updatedAt DESC
+      ORDER BY ${sortBy} ${sortOrder}, r.id DESC
       LIMIT @limit OFFSET @offset
     `,
     )

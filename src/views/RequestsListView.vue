@@ -36,6 +36,20 @@ const filters = reactive<{
 })
 
 const requesterOptions = ref<{ label: string; value: string }[]>([])
+const sortState = reactive<{ sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'; sortOrder: 'asc' | 'desc' }>({
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
+
+function onSortChange(args: { prop: string; order: 'ascending' | 'descending' | null }) {
+  const sortBy = ['createdAt', 'updatedAt', 'priority', 'status'].includes(args.prop)
+    ? (args.prop as 'createdAt' | 'updatedAt' | 'priority' | 'status')
+    : 'createdAt'
+  const sortOrder = args.order === 'ascending' ? 'asc' : args.order === 'descending' ? 'desc' : 'desc'
+  sortState.sortBy = sortBy
+  sortState.sortOrder = sortOrder
+  fetchListAt(1, pageSize.value).catch(() => undefined)
+}
 
 async function loadRequesterOptions() {
   if (!reviewerLike.value) {
@@ -57,6 +71,8 @@ async function fetchList() {
     category: (filters.category || undefined) as Category | undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    sortBy: sortState.sortBy,
+    sortOrder: sortState.sortOrder,
     page: page.value,
     pageSize: pageSize.value,
   })
@@ -70,6 +86,8 @@ async function fetchListAt(p: number, ps: number) {
     category: (filters.category || undefined) as Category | undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    sortBy: sortState.sortBy,
+    sortOrder: sortState.sortOrder,
     page: p,
     pageSize: ps,
   })
@@ -83,6 +101,8 @@ async function fetchListFirstPage() {
     category: (filters.category || undefined) as Category | undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    sortBy: sortState.sortBy,
+    sortOrder: sortState.sortOrder,
     page: 1,
     pageSize: pageSize.value,
   })
@@ -95,6 +115,8 @@ function onReset() {
   filters.category = ''
   filters.tag = ''
   filters.requesterId = ''
+  sortState.sortBy = 'createdAt'
+  sortState.sortOrder = 'desc'
   fetchListAt(1, pageSize.value).catch(() => undefined)
 }
 
@@ -309,14 +331,21 @@ onMounted(() => {
         </el-form-item>
       </el-form>
 
-      <el-table :data="list" v-loading="loading" stripe style="width: 100%" @row-dblclick="onRowDblClick">
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        style="width: 100%"
+        :default-sort="{ prop: 'createdAt', order: 'descending' }"
+        @row-dblclick="onRowDblClick"
+        @sort-change="onSortChange"
+      >
         <el-table-column label="标题" min-width="280">
           <template #default="{ row }">
             <div class="title-cell">
               <a class="title-link" @click.prevent="view(row.id)">{{ row.title }}</a>
               <div class="meta text-muted">
                 <span class="mono" @click="copyId(row.id)" style="cursor: pointer">#{{ row.id }}</span>
-                <span>更新时间：{{ formatDateTime(row.updatedAt) }}</span>
               </div>
             </div>
           </template>
@@ -326,18 +355,21 @@ onMounted(() => {
             {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
           </template>
         </el-table-column>
+        <el-table-column label="创建时间" prop="createdAt" sortable="custom" width="150">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
         <el-table-column label="最后修改人" width="220">
           <template #default="{ row }">
             {{ formatUserLabel({ name: row.lastActorName, username: row.lastActorUsername }) || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="最后修改时间" width="150">
+        <el-table-column label="最后修改时间" prop="updatedAt" sortable="custom" width="150">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="110">
+        <el-table-column label="状态" prop="status" sortable="custom" width="110">
           <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>
         </el-table-column>
-        <el-table-column label="优先级" width="90">
+        <el-table-column label="优先级" prop="priority" sortable="custom" width="90">
           <template #default="{ row }">
             <el-tag v-if="row.priority" effect="plain" size="small" :style="priorityStyle(row.priority)">
               {{ row.priority }}

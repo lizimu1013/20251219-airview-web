@@ -3,7 +3,7 @@ import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import logoUrl from '@/assets/logo.svg'
+import logoUrl from '@/assets/Snipaste_2025-12-22_21-40-14.png'
 
 const auth = useAuthStore()
 const route = useRoute()

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import logoUrl from '@/assets/logo.svg'
+import logoUrl from '@/assets/Snipaste_2025-12-22_21-40-14.png'
 import { House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatUserLabel } from '@/utils/userLabel'

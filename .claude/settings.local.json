@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(copy \"public\\Snipaste_2025-12-22_21-40-14.png\" \"src\\assets\"\")",
+      "Bash(copy \"public/Snipaste_2025-12-22_21-40-14.png\" \"src/assets/\")",
+      "Bash(cmd /c \"copy D:\\CODE\\7_airan_dashboard\\20251219-airview-web\\public\\Snipaste_2025-12-22_21-40-14.png D:\\CODE\\7_airan_dashboard\\20251219-airview-web\\src\\assets\"\")",
+      "Bash(cmd /c copy \"public/Snipaste_2025-12-22_21-40-14.png\" \"src/assets/\")"
+    ]
+  }
+}

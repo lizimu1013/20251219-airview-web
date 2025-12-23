@@ -129,10 +129,13 @@ async function postMessage() {
   }
 }
 
-function formatMessageAuthor(message: BoardMessage) {
-  if (!message.authorName && !message.authorUsername) return message.anonymous ? '匿名' : '-'
+function formatMessageAuthor(message: BoardMessage, index: number) {
+  const workerLabel = `打工人${index + 1}`
+  if (!message.authorName && !message.authorUsername) return message.anonymous ? workerLabel : '-'
   const label = formatUserLabel({ name: message.authorName, username: message.authorUsername }) || '-'
-  return message.anonymous ? `${label}（匿名）` : label
+  if (!message.anonymous) return label
+  if (!isAdmin.value) return workerLabel
+  return `${label} ${workerLabel}`
 }
 
 async function togglePinned(message: BoardMessage) {
@@ -246,10 +249,10 @@ onMounted(() => {
               <el-skeleton v-if="loadingMessages" animated :rows="4" />
               <el-empty v-else-if="!messages.length" description="暂无留言" />
               <div v-else class="board-items">
-                <div v-for="m in messages" :key="m.id" class="board-item">
+                <div v-for="(m, index) in messages" :key="m.id" class="board-item">
                   <div class="board-meta">
                     <div class="board-left">
-                      <span class="board-author">{{ formatMessageAuthor(m) }}</span>
+                      <span class="board-author">{{ formatMessageAuthor(m, index) }}</span>
                       <el-tag v-if="m.pinned" size="small" type="warning" effect="plain">置顶</el-tag>
                       <el-tag v-if="m.anonymous" size="small" type="info" effect="plain">匿名</el-tag>
                     </div>

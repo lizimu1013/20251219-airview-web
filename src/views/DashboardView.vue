@@ -66,6 +66,7 @@ type BoardMessage = {
   createdAt: string
   anonymous: boolean
   pinned: boolean
+  canDelete: boolean
   authorName?: string
   authorUsername?: string
 }
@@ -151,7 +152,7 @@ async function togglePinned(message: BoardMessage) {
 }
 
 async function deleteMessage(message: BoardMessage) {
-  if (!isAdmin.value) return
+  if (!message.canDelete) return
   if (!window.confirm('确认删除该留言？')) return
   deletingId.value = message.id
   try {
@@ -254,8 +255,9 @@ onMounted(() => {
                     </div>
                     <div class="board-right">
                       <span class="text-muted">{{ formatDateTime(m.createdAt) }}</span>
-                      <el-space v-if="isAdmin" :size="6">
+                      <el-space v-if="isAdmin || m.canDelete" :size="6">
                         <el-button
+                          v-if="isAdmin"
                           text
                           size="small"
                           :loading="pinningId === m.id"
@@ -264,6 +266,7 @@ onMounted(() => {
                           {{ m.pinned ? '取消置顶' : '置顶' }}
                         </el-button>
                         <el-button
+                          v-if="m.canDelete"
                           text
                           size="small"
                           type="danger"

@@ -205,12 +205,14 @@ function rowToBoardMessage(row, viewer) {
   if (!row) return null
   const anonymous = Boolean(row.isAnonymous)
   const revealAuthor = !anonymous || viewer?.role === 'admin'
+  const canDelete = viewer?.role === 'admin' || (viewer?.id && row.authorId === viewer.id)
   return {
     id: row.id,
     content: row.content,
     createdAt: row.createdAt,
     anonymous,
     pinned: Boolean(row.isPinned),
+    canDelete,
     authorName: revealAuthor ? row.authorName ?? undefined : undefined,
     authorUsername: revealAuthor ? row.authorUsername ?? undefined : undefined,
   }
@@ -657,10 +659,11 @@ app.patch('/api/dashboard/messages/:id', authMiddleware, requireRole(['admin']),
   return res.json({ message: rowToBoardMessage(updated, req.user) })
 })
 
-app.delete('/api/dashboard/messages/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+app.delete('/api/dashboard/messages/:id', authMiddleware, (req, res) => {
   const id = req.params.id
-  const row = db.prepare('SELECT id FROM board_messages WHERE id = ?').get(id)
+  const row = db.prepare('SELECT id, authorId FROM board_messages WHERE id = ?').get(id)
   if (!row) return res.status(404).json({ message: 'not found' })
+  if (req.user.role !== 'admin' && row.authorId !== req.user.id) return res.status(403).json({ message: 'forbidden' })
   db.prepare('DELETE FROM board_messages WHERE id = ?').run(id)
   return res.json({ ok: true })
 })

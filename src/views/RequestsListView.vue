@@ -315,7 +315,7 @@ onMounted(() => {
             <div class="title-cell">
               <a class="title-link" @click.prevent="view(row.id)">{{ row.title }}</a>
               <div class="meta text-muted">
-                <span class="mono" @click="copyId(row.id)" style="cursor: pointer">#{{ row.id.slice(0, 8) }}</span>
+                <span class="mono" @click="copyId(row.id)" style="cursor: pointer">#{{ row.id }}</span>
                 <span>更新时间：{{ formatDateTime(row.updatedAt) }}</span>
               </div>
             </div>

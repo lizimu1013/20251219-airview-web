@@ -56,6 +56,25 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function formatDateStamp(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}${m}${d}`
+}
+
+function generateRequestId(db, date = new Date()) {
+  const stamp = formatDateStamp(date)
+  const row = db
+    .prepare(
+      "SELECT MAX(CAST(substr(id, 10) AS INTEGER)) AS maxSeq FROM requests WHERE id LIKE ? AND substr(id, 10) GLOB '[0-9]*'",
+    )
+    .get(`${stamp}_%`)
+  const maxSeq = row?.maxSeq != null ? Number(row.maxSeq) : 0
+  const nextSeq = Number.isFinite(maxSeq) ? maxSeq + 1 : 1
+  return `${stamp}_${String(nextSeq).padStart(3, '0')}`
+}
+
 function jsonArray(value) {
   if (Array.isArray(value)) return value
   return []
@@ -747,36 +766,48 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   if (!why.trim()) return res.status(400).json({ message: 'why required' })
 
   const t = nowIso()
-  const requestId = nanoid()
-  const row = {
-    id: requestId,
-    title,
-    description,
-    why,
-    acceptanceCriteria: body.acceptanceCriteria ? String(body.acceptanceCriteria) : null,
-    status: 'Submitted',
-    category: body.category ? String(body.category) : null,
-    priority: body.priority ? String(body.priority) : null,
-    tagsJson: JSON.stringify(jsonArray(body.tags)),
-    linksJson: JSON.stringify(jsonArray(body.links)),
-    impactScope: body.impactScope ? String(body.impactScope) : null,
-    requesterId: user.id,
-    reviewerId: null,
-    decisionReason: null,
-    suspendUntil: null,
-    suspendCondition: null,
-    createdAt: t,
-    updatedAt: t,
-  }
+  let requestId = ''
+  let row = null
+  let inserted = false
+  for (let i = 0; i < 3 && !inserted; i += 1) {
+    requestId = generateRequestId(db)
+    row = {
+      id: requestId,
+      title,
+      description,
+      why,
+      acceptanceCriteria: body.acceptanceCriteria ? String(body.acceptanceCriteria) : null,
+      status: 'Submitted',
+      category: body.category ? String(body.category) : null,
+      priority: body.priority ? String(body.priority) : null,
+      tagsJson: JSON.stringify(jsonArray(body.tags)),
+      linksJson: JSON.stringify(jsonArray(body.links)),
+      impactScope: body.impactScope ? String(body.impactScope) : null,
+      requesterId: user.id,
+      reviewerId: null,
+      decisionReason: null,
+      suspendUntil: null,
+      suspendCondition: null,
+      createdAt: t,
+      updatedAt: t,
+    }
 
-  db.prepare(
-    `
-    INSERT INTO requests
-    (id,title,description,why,acceptanceCriteria,status,category,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
-    VALUES
-    (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
-  `,
-  ).run(row)
+    try {
+      db.prepare(
+        `
+        INSERT INTO requests
+        (id,title,description,why,acceptanceCriteria,status,category,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
+        VALUES
+        (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
+      `,
+      ).run(row)
+      inserted = true
+    } catch (e) {
+      const msg = String(e?.message || '')
+      if (!msg.includes('requests.id')) throw e
+    }
+  }
+  if (!inserted || !row) return res.status(500).json({ message: 'create failed' })
 
   addAudit({ requestId, actorId: user.id, actionType: 'create', toValue: { status: 'Submitted' } })
   return res.json({ id: requestId })

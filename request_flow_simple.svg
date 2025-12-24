@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#909399" />
+    </marker>
+    <style>
+      .node { fill: #ffffff; stroke: #409eff; stroke-width: 1.4; rx: 10; ry: 10; }
+      .label { font: 14px Arial, sans-serif; fill: #303133; }
+      .title { font: 16px Arial, sans-serif; font-weight: 700; fill: #303133; }
+      .edge { stroke: #909399; stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="450" y="28" text-anchor="middle" class="title">需求流转（简版）</text>
+
+  <!-- Nodes -->
+  <rect class="node" x="330" y="40" width="240" height="56" />
+  <text x="450" y="72" text-anchor="middle" class="label">Submitted 待评审</text>
+
+  <rect class="node" x="60" y="160" width="220" height="56" />
+  <text x="170" y="192" text-anchor="middle" class="label">NeedInfo 待补充</text>
+
+  <rect class="node" x="330" y="160" width="240" height="56" />
+  <text x="450" y="192" text-anchor="middle" class="label">Accepted 已接纳</text>
+
+  <rect class="node" x="620" y="160" width="220" height="56" />
+  <text x="730" y="192" text-anchor="middle" class="label">Suspended 已挂起</text>
+
+  <rect class="node" x="330" y="280" width="240" height="56" />
+  <text x="450" y="312" text-anchor="middle" class="label">Closed 已关闭</text>
+
+  <rect class="node" x="620" y="280" width="220" height="56" />
+  <text x="730" y="312" text-anchor="middle" class="label">Rejected 已拒绝</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M370 96 L370 120 L170 120 L170 160" />
+  <path class="edge" d="M450 96 L450 160" />
+  <path class="edge" d="M530 96 L530 120 L730 120 L730 160" />
+
+  <path class="edge" d="M450 216 L450 280" />
+  <path class="edge" d="M730 216 L730 280" />
+  <path class="edge" d="M620 188 L570 188" />
+
+  <path class="edge" d="M170 160 L170 68 L330 68" />
+</svg>

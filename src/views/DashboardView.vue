@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useRequestsStore } from '@/stores/requests'
 import { useAuthStore } from '@/stores/auth'
@@ -20,6 +21,7 @@ import {
 
 const reqsStore = useRequestsStore()
 const authStore = useAuthStore()
+const router = useRouter()
 
 const counts = computed(() => reqsStore.summary)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
@@ -34,6 +36,14 @@ const cards = computed(() => [
   { key: 'Rejected', label: '已拒绝', value: counts.value.Rejected, icon: CircleCloseFilled, tone: 'danger' as const },
   { key: 'Closed', label: '已关闭', value: counts.value.Closed, icon: Finished, tone: 'muted' as const },
 ])
+
+function goToRequests(key: string) {
+  if (key === 'total') {
+    router.push({ name: 'requests' }).catch(() => undefined)
+    return
+  }
+  router.push({ name: 'requests', query: { status: key } }).catch(() => undefined)
+}
 
 const distribution = computed(() => {
   const t = total.value
@@ -195,7 +205,7 @@ onMounted(() => {
 <template>
   <div class="app-page">
     <div class="kpi-grid">
-      <el-card v-for="c in cards" :key="c.key" class="kpi-card" shadow="hover">
+      <el-card v-for="c in cards" :key="c.key" class="kpi-card" shadow="hover" @click="goToRequests(c.key)">
         <div class="kpi-card-inner" :data-tone="c.tone">
           <div class="kpi-icon">
             <el-icon :size="18"><component :is="c.icon" /></el-icon>
@@ -335,6 +345,9 @@ onMounted(() => {
 }
 .kpi-card :deep(.el-card__body) {
   padding: 14px 14px;
+}
+.kpi-card {
+  cursor: pointer;
 }
 .kpi-card-inner {
   display: flex;

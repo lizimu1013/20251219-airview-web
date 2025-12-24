@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
@@ -15,6 +15,7 @@ import type { Category, Priority, RequestStatus, User } from '@/types/domain'
 const auth = useAuthStore()
 const store = useRequestsStore()
 const router = useRouter()
+const route = useRoute()
 
 const me = computed(() => auth.user)
 const reviewerLike = computed(() => (me.value ? isReviewerLike(me.value.role) : false))
@@ -34,6 +35,20 @@ const filters = reactive<{
   tag: '',
   requesterId: '',
 })
+
+const statusValues: RequestStatus[] = ['Submitted', 'NeedInfo', 'Accepted', 'Suspended', 'Rejected', 'Closed']
+let suppressFilterWatch = false
+
+function normalizeStatus(value: unknown): RequestStatus | '' {
+  if (typeof value !== 'string') return ''
+  return statusValues.includes(value as RequestStatus) ? (value as RequestStatus) : ''
+}
+
+function applyRouteFilters() {
+  suppressFilterWatch = true
+  filters.status = normalizeStatus(route.query.status)
+  suppressFilterWatch = false
+}
 
 const requesterOptions = ref<{ label: string; value: string }[]>([])
 const sortState = reactive<{ sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'; sortOrder: 'asc' | 'desc' }>({
@@ -259,6 +274,7 @@ let searchTimer: number | undefined
 watch(
   () => ({ ...filters }),
   () => {
+    if (suppressFilterWatch) return
     window.clearTimeout(searchTimer)
     searchTimer = window.setTimeout(() => {
       fetchListFirstPage().catch(() => undefined)
@@ -267,11 +283,20 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => route.query.status,
+  () => {
+    applyRouteFilters()
+    fetchListFirstPage().catch(() => undefined)
+  },
+)
+
 watch(reviewerLike, () => {
   loadRequesterOptions().catch(() => undefined)
 })
 
 onMounted(() => {
+  applyRouteFilters()
   loadRequesterOptions().catch(() => undefined)
   fetchList().catch(() => undefined)
 })

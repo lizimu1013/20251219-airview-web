@@ -327,6 +327,21 @@ function addAudit({ requestId, actorId, actionType, fromValue, toValue, note }) 
   ).run(nanoid(), requestId, actorId, actionType, toJson(fromValue), toJson(toValue), note ?? null, nowIso())
 }
 
+function normalizeFilename(name) {
+  const raw = String(name || '').trim()
+  if (!raw) return raw
+  const hasCjk = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]/.test(raw)
+  if (hasCjk) return raw
+  let decoded = ''
+  try {
+    decoded = Buffer.from(raw, 'latin1').toString('utf8')
+  } catch {
+    return raw
+  }
+  if (decoded && /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]/.test(decoded)) return decoded
+  return raw
+}
+
 function rowToAttachment(row) {
   if (!row) return null
   return {
@@ -335,7 +350,7 @@ function rowToAttachment(row) {
     uploaderId: row.uploaderId,
     uploaderName: row.uploaderName ?? undefined,
     uploaderUsername: row.uploaderUsername ?? undefined,
-    filename: row.filename,
+    filename: normalizeFilename(row.filename),
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
     createdAt: row.createdAt,
@@ -1239,11 +1254,12 @@ app.post('/api/requests/:id/attachments', authMiddleware, upload.single('file'),
   const file = req.file
   if (!file) return res.status(400).json({ message: 'file required' })
 
+  const originalName = normalizeFilename(file.originalname || file.filename)
   const att = {
     id: nanoid(),
     requestId: id,
     uploaderId: user.id,
-    filename: file.originalname || file.filename,
+    filename: originalName,
     mimeType: file.mimetype || 'application/octet-stream',
     sizeBytes: file.size,
     storedPath: file.path,

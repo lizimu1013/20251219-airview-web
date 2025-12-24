@@ -8,6 +8,7 @@ import { apiRequest } from '@/api/http'
 import { formatDateTime } from '@/utils/time'
 import { formatUserLabel } from '@/utils/userLabel'
 import OverviewLineChart from '@/components/charts/OverviewLineChart.vue'
+import PieChart from '@/components/charts/PieChart.vue'
 import { RefreshRight } from '@element-plus/icons-vue'
 import {
   Box,
@@ -48,15 +49,23 @@ function goToRequests(key: string) {
 const distribution = computed(() => {
   const t = total.value
   const rows = [
-    { key: 'Submitted', label: '待评审', value: counts.value.Submitted, color: '#E6A23C' },
-    { key: 'NeedInfo', label: '待补充', value: counts.value.NeedInfo, color: '#909399' },
-    { key: 'Accepted', label: '已接纳', value: counts.value.Accepted, color: '#67C23A' },
-    { key: 'Suspended', label: '已挂起', value: counts.value.Suspended, color: '#F59E0B' },
-    { key: 'Rejected', label: '已拒绝', value: counts.value.Rejected, color: '#F56C6C' },
-    { key: 'Closed', label: '已关闭', value: counts.value.Closed, color: '#409EFF' },
+    { key: 'Submitted', label: '待评审', value: counts.value.Submitted, color: '#6BB8FF' },
+    { key: 'NeedInfo', label: '待补充', value: counts.value.NeedInfo, color: '#A6DDFC' },
+    { key: 'Accepted', label: '已接纳', value: counts.value.Accepted, color: '#6FE3B8' },
+    { key: 'Suspended', label: '已挂起', value: counts.value.Suspended, color: '#FFD28A' },
+    { key: 'Rejected', label: '已拒绝', value: counts.value.Rejected, color: '#F59AA8' },
+    { key: 'Closed', label: '已关闭', value: counts.value.Closed, color: '#7E8FAE' },
   ]
   return rows.map((r) => ({ ...r, percent: t ? Math.round((r.value / t) * 100) : 0 }))
 })
+
+const distributionPie = computed(() =>
+  distribution.value.map((r) => ({
+    value: r.value,
+    name: r.label,
+    itemStyle: { color: r.color },
+  })),
+)
 
 const trend = ref<{
   dates: string[]
@@ -254,18 +263,8 @@ onMounted(() => {
               <div class="text-muted">占比（%）</div>
             </div>
           </template>
-          <div class="dist">
-            <div v-for="r in distribution" :key="r.key" class="dist-row">
-              <div class="dist-left">
-                <div class="dist-label">{{ r.label }}</div>
-                <div class="dist-meta text-muted">{{ r.value }} / {{ total }}</div>
-              </div>
-              <div class="dist-right">
-                <el-progress :percentage="r.percent" :color="r.color" :stroke-width="10" :show-text="false" />
-              </div>
-              <div class="dist-percent mono">{{ r.percent }}%</div>
-            </div>
-          </div>
+          <PieChart v-if="total" :data="distributionPie" height="280px" />
+          <el-empty v-else description="暂无数据" />
         </el-card>
       </el-col>
 
@@ -403,33 +402,6 @@ onMounted(() => {
   font-size: 26px;
   font-weight: 900;
   letter-spacing: 0.2px;
-}
-.dist {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.dist-row {
-  display: grid;
-  grid-template-columns: 140px 1fr 48px;
-  align-items: center;
-  gap: 10px;
-}
-.dist-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.dist-label {
-  font-weight: 700;
-}
-.dist-meta {
-  font-size: 12px;
-}
-.dist-percent {
-  text-align: right;
-  color: #606266;
-  font-size: 12px;
 }
 .trend-right {
   display: flex;

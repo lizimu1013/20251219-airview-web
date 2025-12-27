@@ -219,6 +219,9 @@ function rowToRequest(row) {
     reviewerId: row.reviewerId ?? undefined,
     reviewerName: row.reviewerName ?? undefined,
     reviewerUsername: row.reviewerUsername ?? undefined,
+    implementerId: row.implementerId ?? undefined,
+    implementerName: row.implementerName ?? undefined,
+    implementerUsername: row.implementerUsername ?? undefined,
     lastActorName: row.lastActorName ?? undefined,
     lastActorUsername: row.lastActorUsername ?? undefined,
     decisionReason: row.decisionReason ?? undefined,
@@ -919,11 +922,14 @@ app.get('/api/requests', authMiddleware, (req, res) => {
         u1.username AS requesterUsername,
         u2.name AS reviewerName,
         u2.username AS reviewerUsername,
+        u4.name AS implementerName,
+        u4.username AS implementerUsername,
         u3.name AS lastActorName,
         u3.username AS lastActorUsername
       FROM requests r
       JOIN users u1 ON u1.id = r.requesterId
       LEFT JOIN users u2 ON u2.id = r.reviewerId
+      LEFT JOIN users u4 ON u4.id = r.implementerId
       LEFT JOIN audit_logs llast
         ON llast.requestId = r.id
        AND llast.createdAt = (SELECT MAX(createdAt) FROM audit_logs WHERE requestId = r.id)
@@ -969,6 +975,7 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       impactScope: body.impactScope ? String(body.impactScope) : null,
       requesterId: user.id,
       reviewerId: null,
+      implementerId: null,
       decisionReason: null,
       suspendUntil: null,
       suspendCondition: null,
@@ -980,9 +987,9 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       db.prepare(
         `
         INSERT INTO requests
-        (id,title,description,why,acceptanceCriteria,status,category,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
+        (id,title,description,why,acceptanceCriteria,status,category,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,implementerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
         VALUES
-        (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
+        (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@implementerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
       `,
       ).run(row)
       inserted = true
@@ -1008,10 +1015,13 @@ app.get('/api/requests/:id', authMiddleware, (req, res) => {
         u1.name AS requesterName,
         u1.username AS requesterUsername,
         u2.name AS reviewerName,
-        u2.username AS reviewerUsername
+        u2.username AS reviewerUsername,
+        u3.name AS implementerName,
+        u3.username AS implementerUsername
       FROM requests r
       JOIN users u1 ON u1.id = r.requesterId
       LEFT JOIN users u2 ON u2.id = r.reviewerId
+      LEFT JOIN users u3 ON u3.id = r.implementerId
       WHERE r.id = ?
     `,
     )
@@ -1186,6 +1196,7 @@ app.post('/api/requests/:id/status', authMiddleware, (req, res) => {
   const reason = String(req.body?.reason || '').trim()
   const suspendUntil = req.body?.suspendUntil ? String(req.body.suspendUntil).trim() : ''
   const suspendCondition = req.body?.suspendCondition ? String(req.body.suspendCondition).trim() : ''
+  const implementerIdRaw = req.body?.implementerId ? String(req.body.implementerId).trim() : ''
 
   if (!toStatus) return res.status(400).json({ message: 'toStatus required' })
   if (!isTransitionAllowed(current.status, toStatus)) return res.status(400).json({ message: 'transition not allowed' })
@@ -1193,11 +1204,18 @@ app.post('/api/requests/:id/status', authMiddleware, (req, res) => {
   if (toStatus === 'Suspended' && !suspendUntil && !suspendCondition) {
     return res.status(400).json({ message: 'Suspended requires suspendUntil or suspendCondition' })
   }
+  if (toStatus === 'Accepted') {
+    if (!implementerIdRaw) return res.status(400).json({ message: 'implementerId required' })
+    const implementer = getUserById(implementerIdRaw)
+    if (!implementer) return res.status(400).json({ message: 'invalid implementerId' })
+  }
 
   const t = nowIso()
+  const implementerId = toStatus === 'Accepted' ? implementerIdRaw : (current.implementerId ?? null)
   const patch = {
     status: toStatus,
     reviewerId: user.id,
+    implementerId,
     decisionReason: reason,
     suspendUntil: toStatus === 'Suspended' ? (suspendUntil || null) : null,
     suspendCondition: toStatus === 'Suspended' ? (suspendCondition || null) : null,
@@ -1207,7 +1225,7 @@ app.post('/api/requests/:id/status', authMiddleware, (req, res) => {
   db.prepare(
     `
     UPDATE requests
-    SET status=@status, reviewerId=@reviewerId, decisionReason=@decisionReason, suspendUntil=@suspendUntil, suspendCondition=@suspendCondition, updatedAt=@updatedAt
+    SET status=@status, reviewerId=@reviewerId, implementerId=@implementerId, decisionReason=@decisionReason, suspendUntil=@suspendUntil, suspendCondition=@suspendCondition, updatedAt=@updatedAt
     WHERE id=@id
   `,
   ).run({ id, ...patch })
@@ -1217,7 +1235,13 @@ app.post('/api/requests/:id/status', authMiddleware, (req, res) => {
     actorId: user.id,
     actionType: 'status_change',
     fromValue: { status: current.status },
-    toValue: { status: toStatus, decisionReason: reason, suspendUntil: patch.suspendUntil, suspendCondition: patch.suspendCondition },
+    toValue: {
+      status: toStatus,
+      decisionReason: reason,
+      implementerId,
+      suspendUntil: patch.suspendUntil,
+      suspendCondition: patch.suspendCondition,
+    },
     note: reason,
   })
 

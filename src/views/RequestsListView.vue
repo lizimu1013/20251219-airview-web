@@ -51,6 +51,7 @@ function applyRouteFilters() {
 }
 
 const requesterOptions = ref<{ label: string; value: string }[]>([])
+const implementerOptions = ref<{ label: string; value: string }[]>([])
 const sortState = reactive<{ sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'; sortOrder: 'asc' | 'desc' }>({
   sortBy: 'createdAt',
   sortOrder: 'desc',
@@ -69,10 +70,15 @@ function onSortChange(args: { prop: string; order: 'ascending' | 'descending' | 
 async function loadRequesterOptions() {
   if (!reviewerLike.value) {
     requesterOptions.value = []
+    implementerOptions.value = []
     return
   }
   const res = await apiRequest<{ users: Pick<User, 'id' | 'name' | 'username' | 'role'>[] }>('/api/users/options')
-  requesterOptions.value = res.users.map((u) => ({ label: formatUserLabel(u), value: u.id }))
+  const options = res.users.map((u) => ({ label: formatUserLabel(u), value: u.id }))
+  requesterOptions.value = options
+  implementerOptions.value = res.users
+    .filter((u) => u.username !== 'admin')
+    .map((u) => ({ label: formatUserLabel(u), value: u.id }))
 }
 
 const { list, total, page, pageSize, loadingList } = storeToRefs(store)
@@ -169,6 +175,7 @@ const statusDialog = reactive<{
   reason: string
   suspendUntil: string
   suspendCondition: string
+  implementerId: string
 }>({
   visible: false,
   requestId: '',
@@ -176,15 +183,17 @@ const statusDialog = reactive<{
   reason: '',
   suspendUntil: '',
   suspendCondition: '',
+  implementerId: '',
 })
 
-function openStatusDialog(requestId: string, toStatus: RequestStatus) {
+function openStatusDialog(requestId: string, toStatus: RequestStatus, implementerId?: string) {
   statusDialog.visible = true
   statusDialog.requestId = requestId
   statusDialog.toStatus = toStatus
   statusDialog.reason = ''
   statusDialog.suspendUntil = ''
   statusDialog.suspendCondition = ''
+  statusDialog.implementerId = toStatus === 'Accepted' ? implementerId ?? '' : ''
 }
 
 function statusTitle(status: RequestStatus) {
@@ -238,6 +247,10 @@ async function onConfirmStatus() {
     ElMessage.error('原因/处理意见不能为空')
     return
   }
+  if (toStatus === 'Accepted' && !statusDialog.implementerId) {
+    ElMessage.error('请选择实施人')
+    return
+  }
   if (toStatus === 'Suspended') {
     const hasUntil = !!statusDialog.suspendUntil.trim()
     const hasCond = !!statusDialog.suspendCondition.trim()
@@ -261,6 +274,7 @@ async function onConfirmStatus() {
       reason: statusDialog.reason,
       suspendUntil: statusDialog.suspendUntil || undefined,
       suspendCondition: statusDialog.suspendCondition || undefined,
+      implementerId: statusDialog.implementerId || undefined,
     })
     ElMessage.success('已更新状态')
     statusDialog.visible = false
@@ -380,6 +394,11 @@ onMounted(() => {
             {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
           </template>
         </el-table-column>
+        <el-table-column label="实施人" width="220">
+          <template #default="{ row }">
+            {{ formatUserLabel({ name: row.implementerName, username: row.implementerUsername }) || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="创建时间" prop="createdAt" sortable="custom" width="150">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -423,7 +442,7 @@ onMounted(() => {
                   size="small"
                   type="success"
                   plain
-                  @click="openStatusDialog(row.id, 'Accepted')"
+                  @click="openStatusDialog(row.id, 'Accepted', row.implementerId)"
                 >
                   接纳
                 </el-button>
@@ -475,6 +494,12 @@ onMounted(() => {
       <el-form label-position="top">
         <el-form-item :label="statusDialog.toStatus === 'NeedInfo' ? '需要补充的点（必填）' : '原因/处理意见（必填）'">
           <el-input v-model="statusDialog.reason" type="textarea" :rows="4" />
+        </el-form-item>
+
+        <el-form-item v-if="statusDialog.toStatus === 'Accepted'" label="实施人（可选）">
+          <el-select v-model="statusDialog.implementerId" placeholder="请选择实施人" clearable filterable>
+            <el-option v-for="o in implementerOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
         </el-form-item>
 
         <template v-if="statusDialog.toStatus === 'Suspended'">

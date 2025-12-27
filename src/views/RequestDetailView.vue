@@ -6,12 +6,12 @@ import RequestStatusTag from '@/components/RequestStatusTag.vue'
 import { apiRequest } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useRequestsStore } from '@/stores/requests'
-import { canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
+import { canDeleteRequest, canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
 import { formatDate, formatDateTime } from '@/utils/time'
 import { formatUserLabel } from '@/utils/userLabel'
 import type { Priority, RequestStatus, User } from '@/types/domain'
 import { getToken } from '@/utils/token'
-import { ArrowLeft, Edit } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Edit } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
 const store = useRequestsStore()
@@ -30,6 +30,7 @@ const req = computed(() => {
 
 const canView = computed(() => (me.value && req.value ? canViewRequest(me.value, req.value) : false))
 const canEdit = computed(() => (me.value && req.value ? canEditRequest(me.value, req.value) : false))
+const canDelete = computed(() => (me.value && req.value ? canDeleteRequest(me.value) : false))
 const reviewerLike = computed(() => (me.value ? isReviewerLike(me.value.role) : false))
 
 const requesterName = computed(() =>
@@ -86,6 +87,26 @@ function canDeleteComment(authorId?: string) {
 function onEdit() {
   if (!req.value) return
   router.push(`/requests/${req.value.id}/edit`)
+}
+
+async function onDeleteRequest() {
+  if (!req.value) return
+  try {
+    await ElMessageBox.confirm('确认删除该需求？该操作不可恢复。', '删除需求', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await store.deleteRequest(req.value.id)
+    ElMessage.success('已删除需求')
+    router.push('/requests')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
 }
 
 const statusDialog = reactive<{
@@ -333,6 +354,10 @@ async function loadImplementerOptions() {
               <el-button v-if="canEdit" plain type="primary" @click="onEdit">
                 <el-icon><Edit /></el-icon>
                 编辑
+              </el-button>
+              <el-button v-if="canDelete" plain type="danger" @click="onDeleteRequest">
+                <el-icon><Delete /></el-icon>
+                删除
               </el-button>
               <el-divider v-if="me && canReview(me)" direction="vertical" />
               <el-space v-if="me && canReview(me)" :size="8" wrap>

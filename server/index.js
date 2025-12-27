@@ -1155,6 +1155,17 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   if (body.tags !== undefined) patch.tagsJson = JSON.stringify(jsonArray(body.tags))
   if (body.links !== undefined) patch.linksJson = JSON.stringify(jsonArray(body.links))
   if (body.impactScope !== undefined) patch.impactScope = body.impactScope ? String(body.impactScope) : null
+  if (body.implementerId !== undefined) {
+    if (!isReviewerLike(user.role)) return res.status(403).json({ message: 'forbidden' })
+    const implementerId = String(body.implementerId || '').trim()
+    if (implementerId) {
+      const implementer = getUserById(implementerId)
+      if (!implementer) return res.status(400).json({ message: 'invalid implementerId' })
+      patch.implementerId = implementerId
+    } else {
+      patch.implementerId = null
+    }
+  }
   if (body.createdAt != null) {
     if (user.role !== 'admin') return res.status(403).json({ message: 'forbidden' })
     const t = new Date(String(body.createdAt))
@@ -1175,6 +1186,25 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   db.prepare(`UPDATE requests SET ${setSql} WHERE id=@id`).run({ id, ...patch })
   const note = patch.createdAt ? '编辑需求字段（含提交时间）' : '编辑需求字段'
   addAudit({ requestId: id, actorId: user.id, actionType: 'edit', note, fromValue: { status: current.status }, toValue: { status: current.status } })
+  return res.json({ ok: true })
+})
+
+app.delete('/api/requests/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+  const id = req.params.id
+  const row = db.prepare('SELECT id FROM requests WHERE id = ?').get(id)
+  if (!row) return res.status(404).json({ message: 'not found' })
+
+  const attachments = db.prepare('SELECT storedPath FROM attachments WHERE requestId = ?').all(id)
+  db.prepare('DELETE FROM requests WHERE id = ?').run(id)
+  for (const att of attachments) {
+    if (!att?.storedPath) continue
+    try {
+      if (fs.existsSync(att.storedPath)) fs.unlinkSync(att.storedPath)
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('failed to delete attachment', att.storedPath, e)
+    }
+  }
   return res.json({ ok: true })
 })
 

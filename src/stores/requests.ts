@@ -140,6 +140,23 @@ export const useRequestsStore = defineStore('requests', () => {
     await fetchDetail(requestId)
   }
 
+  async function deleteRequest(requestId: string) {
+    await apiRequest<{ ok: true }>(`/api/requests/${requestId}`, { method: 'DELETE' })
+    if (current.value?.id === requestId) {
+      current.value = null
+      comments.value = []
+      auditLogs.value = []
+      attachments.value = []
+    }
+    if (list.value.length) {
+      const next = list.value.filter((item) => item.id !== requestId)
+      if (next.length !== list.value.length) {
+        list.value = next
+        total.value = Math.max(0, total.value - 1)
+      }
+    }
+  }
+
   async function uploadAttachment(requestId: string, file: File) {
     const form = new FormData()
     form.append('file', file)
@@ -173,6 +190,7 @@ export const useRequestsStore = defineStore('requests', () => {
     deleteComment,
     changeStatus,
     resubmit,
+    deleteRequest,
     uploadAttachment,
     setSummary,
   }

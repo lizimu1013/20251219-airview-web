@@ -4,8 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useRequestsStore } from '@/stores/requests'
-import { canEditRequest } from '@/utils/permissions'
-import type { Category, Priority, RequestItem } from '@/types/domain'
+import { apiRequest } from '@/api/http'
+import { canEditRequest, isReviewerLike } from '@/utils/permissions'
+import { formatUserLabel } from '@/utils/userLabel'
+import type { Category, Priority, RequestItem, User } from '@/types/domain'
 
 const auth = useAuthStore()
 const store = useRequestsStore()
@@ -15,6 +17,7 @@ const router = useRouter()
 const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const isEdit = computed(() => !!id.value)
 const isAdmin = computed(() => auth.user?.role === 'admin')
+const reviewerLike = computed(() => (auth.user ? isReviewerLike(auth.user.role) : false))
 
 const source = computed<RequestItem | null>(() => {
   if (!isEdit.value) return null
@@ -34,6 +37,7 @@ const form = reactive({
   linksText: '',
   impactScope: '',
   createdAt: '',
+  implementerId: '',
 })
 
 const formRef = ref()
@@ -58,6 +62,7 @@ watchEffect(() => {
   form.linksText = (source.value.links ?? []).join('\n')
   form.impactScope = source.value.impactScope ?? ''
   form.createdAt = source.value.createdAt ?? ''
+  form.implementerId = source.value.implementerId ?? ''
 })
 
 const rules = {
@@ -67,6 +72,19 @@ const rules = {
 }
 
 const tagOptions = ['AI RAN', 'CellFree', 'MIMO', '其他']
+
+const implementerOptions = ref<{ label: string; value: string }[]>([])
+
+async function loadImplementerOptions() {
+  if (!reviewerLike.value) {
+    implementerOptions.value = []
+    return
+  }
+  const res = await apiRequest<{ users: Pick<User, 'id' | 'name' | 'username' | 'role'>[] }>('/api/users/options')
+  implementerOptions.value = res.users
+    .filter((u) => u.username !== 'admin')
+    .map((u) => ({ label: formatUserLabel(u), value: u.id }))
+}
 
 function normalizeTags(tags: string[]) {
   const seen = new Set<string>()
@@ -99,7 +117,7 @@ async function onSubmit() {
 
   await formRef.value?.validate?.()
 
-  const payload = {
+  const payload: Partial<RequestItem> & { implementerId?: string | null } = {
     title: form.title,
     description: form.description,
     why: form.why,
@@ -110,6 +128,9 @@ async function onSubmit() {
     links: parseLinks(form.linksText),
     impactScope: form.impactScope || undefined,
     createdAt: isEdit.value && isAdmin.value ? form.createdAt || undefined : undefined,
+  }
+  if (isEdit.value && reviewerLike.value) {
+    payload.implementerId = form.implementerId ? form.implementerId : null
   }
 
   if (!isEdit.value) {
@@ -141,6 +162,7 @@ function onCancel() {
 onMounted(() => {
   if (!isEdit.value) return
   store.fetchDetail(id.value).catch(() => ElMessage.error('加载失败'))
+  loadImplementerOptions().catch(() => ElMessage.error('加载实施人失败'))
 })
 </script>
 
@@ -203,7 +225,14 @@ onMounted(() => {
           </el-col>
         </el-row>
 
-        <el-row v-if="isEdit && isAdmin" :gutter="12">
+        <el-row v-if="isEdit && (isAdmin || reviewerLike)" :gutter="12">
+          <el-col v-if="reviewerLike" :span="8">
+            <el-form-item label="实施人（评审/管理员可改）">
+              <el-select v-model="form.implementerId" clearable filterable placeholder="选择实施人">
+                <el-option v-for="o in implementerOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="8">
             <el-form-item label="提交时间（管理员可改）">
               <el-date-picker

@@ -23,3 +23,7 @@ export function canEditRequest(user: User, req: RequestItem) {
 export function canReview(user: User) {
   return isReviewerLike(user.role)
 }
+
+export function canDeleteRequest(user: User) {
+  return user.role === 'admin'
+}

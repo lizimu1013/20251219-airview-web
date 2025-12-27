@@ -657,6 +657,46 @@ app.get('/api/dashboard/trend', authMiddleware, (req, res) => {
   return res.json({ dates, created, accepted, rejected, closed })
 })
 
+app.get('/api/dashboard/leaderboard', authMiddleware, (req, res) => {
+  const daysRaw = Number(req.query.days ?? 0)
+  const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(365, Math.floor(daysRaw)) : 0
+  const startIso = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() : null
+  const timeFilter = startIso ? 'AND r.createdAt >= @startIso' : ''
+
+  const submitters = db
+    .prepare(
+      `
+      SELECT u.id, u.name, u.username, COUNT(1) AS c
+      FROM requests r
+      JOIN users u ON u.id = r.requesterId
+      WHERE 1=1 ${timeFilter}
+      GROUP BY r.requesterId
+      ORDER BY c DESC, u.createdAt ASC
+      LIMIT 10
+    `,
+    )
+    .all({ startIso })
+    .map((row) => ({ userId: row.id, name: row.name, username: row.username, count: row.c }))
+
+  const implementers = db
+    .prepare(
+      `
+      SELECT u.id, u.name, u.username, COUNT(1) AS c
+      FROM requests r
+      JOIN users u ON u.id = r.implementerId
+      WHERE r.implementerId IS NOT NULL
+      ${timeFilter}
+      GROUP BY r.implementerId
+      ORDER BY c DESC, u.createdAt ASC
+      LIMIT 10
+    `,
+    )
+    .all({ startIso })
+    .map((row) => ({ userId: row.id, name: row.name, username: row.username, count: row.c }))
+
+  return res.json({ submitters, implementers })
+})
+
 app.post('/api/track/visit', authMiddleware, (req, res) => {
   const rawPath = String(req.body?.path || '').trim()
   if (!rawPath || !rawPath.startsWith('/')) return res.status(400).json({ message: 'path required' })

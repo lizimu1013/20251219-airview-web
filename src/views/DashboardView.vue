@@ -110,6 +110,7 @@ const pinningId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const loadingLeaderboard = ref(false)
 const leaderboardDays = ref(0)
+const leaderboardTab = ref<'submitters' | 'implementers'>('submitters')
 
 type LeaderboardRow = {
   userId: string
@@ -287,56 +288,6 @@ onMounted(() => {
     </el-row>
 
     <el-row :gutter="12" style="margin-top: 12px">
-      <el-col :xs="24">
-        <el-card>
-          <template #header>
-            <div class="app-card-header">
-              <div>排行榜</div>
-              <el-select v-model="leaderboardDays" size="small" style="width: 140px" @change="loadLeaderboard">
-                <el-option label="全部" :value="0" />
-                <el-option label="近 30 天" :value="30" />
-              </el-select>
-            </div>
-          </template>
-          <el-skeleton v-if="loadingLeaderboard" animated :rows="6" />
-          <el-row v-else :gutter="12">
-            <el-col :xs="24" :md="12">
-              <div class="leaderboard-title">需求提交排行榜</div>
-              <el-empty v-if="!leaderboard.submitters.length" description="暂无数据" />
-              <el-table v-else :data="leaderboard.submitters" size="small" style="width: 100%">
-                <el-table-column label="排名" width="70">
-                  <template #default="{ $index }">{{ $index + 1 }}</template>
-                </el-table-column>
-                <el-table-column label="人员">
-                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
-                </el-table-column>
-                <el-table-column label="提交数" width="90">
-                  <template #default="{ row }">{{ row.count }}</template>
-                </el-table-column>
-              </el-table>
-            </el-col>
-
-            <el-col :xs="24" :md="12">
-              <div class="leaderboard-title">需求实施排行榜</div>
-              <el-empty v-if="!leaderboard.implementers.length" description="暂无数据" />
-              <el-table v-else :data="leaderboard.implementers" size="small" style="width: 100%">
-                <el-table-column label="排名" width="70">
-                  <template #default="{ $index }">{{ $index + 1 }}</template>
-                </el-table-column>
-                <el-table-column label="人员">
-                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
-                </el-table-column>
-                <el-table-column label="实施数" width="90">
-                  <template #default="{ row }">{{ row.count }}</template>
-                </el-table-column>
-              </el-table>
-            </el-col>
-          </el-row>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="12" style="margin-top: 12px">
       <el-col :xs="24" :md="12">
         <el-card>
           <template #header>
@@ -351,6 +302,59 @@ onMounted(() => {
       </el-col>
 
       <el-col :xs="24" :md="12">
+        <el-card>
+          <template #header>
+            <div class="app-card-header">
+              <div>排行榜</div>
+              <div class="leaderboard-actions">
+                <el-radio-group v-model="leaderboardTab" size="small">
+                  <el-radio-button label="submitters">提交榜</el-radio-button>
+                  <el-radio-button label="implementers">实施榜</el-radio-button>
+                </el-radio-group>
+                <el-select v-model="leaderboardDays" size="small" style="width: 140px" @change="loadLeaderboard">
+                  <el-option label="全部" :value="0" />
+                  <el-option label="近 30 天" :value="30" />
+                </el-select>
+              </div>
+            </div>
+          </template>
+          <el-skeleton v-if="loadingLeaderboard" animated :rows="6" />
+          <template v-else>
+            <div v-if="leaderboardTab === 'submitters'">
+              <el-empty v-if="!leaderboard.submitters.length" description="暂无数据" />
+              <el-table v-else :data="leaderboard.submitters" size="small" style="width: 100%">
+                <el-table-column label="排名" width="70">
+                  <template #default="{ $index }">{{ $index + 1 }}</template>
+                </el-table-column>
+                <el-table-column label="人员">
+                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
+                </el-table-column>
+                <el-table-column label="提交数" width="90">
+                  <template #default="{ row }">{{ row.count }}</template>
+                </el-table-column>
+              </el-table>
+            </div>
+            <div v-else>
+              <el-empty v-if="!leaderboard.implementers.length" description="暂无数据" />
+              <el-table v-else :data="leaderboard.implementers" size="small" style="width: 100%">
+                <el-table-column label="排名" width="70">
+                  <template #default="{ $index }">{{ $index + 1 }}</template>
+                </el-table-column>
+                <el-table-column label="人员">
+                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
+                </el-table-column>
+                <el-table-column label="实施数" width="90">
+                  <template #default="{ row }">{{ row.count }}</template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </template>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="12" style="margin-top: 12px">
+      <el-col :xs="24">
         <el-card>
           <template #header>
             <div class="app-card-header">
@@ -490,10 +494,10 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
 }
-.leaderboard-title {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
+.leaderboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .board {
   display: flex;

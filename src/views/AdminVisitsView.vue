@@ -28,6 +28,13 @@ const users = ref<VisitUserRow[]>([])
 
 const totalCount = computed(() => counts.value.reduce((sum, c) => sum + c, 0))
 const todayCount = computed(() => (counts.value.length ? counts.value[counts.value.length - 1] : 0))
+const rangeText = computed(() => {
+  if (days.value === 1) return '当日'
+  if (days.value === 7) return '一周'
+  if (days.value === 14) return '14 天'
+  if (days.value === 30) return '30 天'
+  return `近 ${days.value} 天`
+})
 const rangeLabel = computed(() => {
   if (!dates.value.length) return ''
   return `${dates.value[0]} ~ ${dates.value[dates.value.length - 1]}`
@@ -91,7 +98,8 @@ onMounted(() => {
           <div>访问量统计</div>
           <el-space>
             <el-select v-model="days" size="small" style="width: 120px" @change="load">
-              <el-option label="近 7 天" :value="7" />
+              <el-option label="当日" :value="1" />
+              <el-option label="一周" :value="7" />
               <el-option label="近 14 天" :value="14" />
               <el-option label="近 30 天" :value="30" />
             </el-select>
@@ -108,7 +116,7 @@ onMounted(() => {
           <el-card shadow="never" class="stat-card">
             <div class="stat-title">总访问量</div>
             <div class="stat-value">{{ totalCount }}</div>
-            <div class="text-muted">{{ rangeLabel || `近 ${days} 天` }}</div>
+            <div class="text-muted">{{ rangeLabel || rangeText }}</div>
           </el-card>
         </el-col>
         <el-col :xs="24" :md="8">
@@ -134,7 +142,7 @@ onMounted(() => {
           <template #header>
             <div class="app-card-header">
               <div>趋势</div>
-              <div class="text-muted">{{ rangeLabel || `近 ${days} 天` }}</div>
+              <div class="text-muted">{{ rangeLabel || rangeText }}</div>
             </div>
           </template>
           <el-skeleton v-if="loading" animated :rows="5" />
@@ -146,7 +154,7 @@ onMounted(() => {
           <template #header>
             <div class="app-card-header">
               <div>页面排行</div>
-              <div class="text-muted">近 {{ days }} 天</div>
+              <div class="text-muted">{{ rangeText }}</div>
             </div>
           </template>
           <el-table :data="pages" size="small" stripe style="width: 100%" height="320">
@@ -169,7 +177,7 @@ onMounted(() => {
           <template #header>
             <div class="app-card-header">
               <div>角色统计</div>
-              <div class="text-muted">近 {{ days }} 天</div>
+              <div class="text-muted">{{ rangeText }}</div>
             </div>
           </template>
           <el-table :data="roles" size="small" stripe style="width: 100%" height="260">
@@ -187,7 +195,7 @@ onMounted(() => {
           <template #header>
             <div class="app-card-header">
               <div>用户访问排行</div>
-              <div class="text-muted">近 {{ days }} 天</div>
+              <div class="text-muted">{{ rangeText }}</div>
             </div>
           </template>
           <el-table :data="users" size="small" stripe style="width: 100%" height="260">

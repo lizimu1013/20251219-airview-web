@@ -724,25 +724,26 @@ app.post('/api/track/visit', authMiddleware, (req, res) => {
 
 app.get('/api/admin/visits', authMiddleware, requireRole(['admin']), (req, res) => {
   const daysRaw = Number(req.query.days ?? 14)
-  const days = Math.min(90, Math.max(7, Number.isFinite(daysRaw) ? Math.floor(daysRaw) : 14))
+  const days = Math.min(90, Math.max(1, Number.isFinite(daysRaw) ? Math.floor(daysRaw) : 14))
 
   const end = new Date()
   end.setHours(0, 0, 0, 0)
   const start = new Date(end)
   start.setDate(start.getDate() - (days - 1))
   const startKey = formatDateKey(start)
+  const endKey = formatDateKey(end)
 
   const rows = db
     .prepare(
       `
       SELECT day, SUM(count) AS total
       FROM visit_stats
-      WHERE day >= ?
+      WHERE day BETWEEN ? AND ?
       GROUP BY day
       ORDER BY day ASC
     `,
     )
-    .all(startKey)
+    .all(startKey, endKey)
 
   const byDate = new Map(rows.map((r) => [r.day, r.total]))
   const dates = []
@@ -760,25 +761,25 @@ app.get('/api/admin/visits', authMiddleware, requireRole(['admin']), (req, res) 
       `
       SELECT path, SUM(count) AS total
       FROM visit_stats
-      WHERE day >= ?
+      WHERE day BETWEEN ? AND ?
       GROUP BY path
       ORDER BY total DESC
       LIMIT 30
     `,
     )
-    .all(startKey)
+    .all(startKey, endKey)
 
   const roles = db
     .prepare(
       `
       SELECT role, SUM(count) AS total
       FROM visit_stats_user
-      WHERE day >= ?
+      WHERE day BETWEEN ? AND ?
       GROUP BY role
       ORDER BY total DESC
     `,
     )
-    .all(startKey)
+    .all(startKey, endKey)
 
   const users = db
     .prepare(
@@ -786,13 +787,13 @@ app.get('/api/admin/visits', authMiddleware, requireRole(['admin']), (req, res) 
       SELECT v.userId, u.name, u.username, u.role, SUM(v.count) AS total
       FROM visit_stats_user v
       JOIN users u ON u.id = v.userId
-      WHERE v.day >= ?
+      WHERE v.day BETWEEN ? AND ?
       GROUP BY v.userId, u.name, u.username, u.role
       ORDER BY total DESC
       LIMIT 20
     `,
     )
-    .all(startKey)
+    .all(startKey, endKey)
 
   return res.json({
     range: { start: dates[0], end: dates[dates.length - 1], days },

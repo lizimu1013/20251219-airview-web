@@ -42,13 +42,15 @@ export function migrate(db) {
       impactScope TEXT,
       requesterId TEXT NOT NULL,
       reviewerId TEXT,
+      implementerId TEXT,
       decisionReason TEXT,
       suspendUntil TEXT,
       suspendCondition TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       FOREIGN KEY (requesterId) REFERENCES users(id),
-      FOREIGN KEY (reviewerId) REFERENCES users(id)
+      FOREIGN KEY (reviewerId) REFERENCES users(id),
+      FOREIGN KEY (implementerId) REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS comments (
@@ -132,6 +134,11 @@ export function migrate(db) {
   const boardColumns = db.prepare('PRAGMA table_info(board_messages)').all().map((col) => col.name)
   if (!boardColumns.includes('isPinned')) {
     db.exec('ALTER TABLE board_messages ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0')
+  }
+
+  const requestColumns = db.prepare('PRAGMA table_info(requests)').all().map((col) => col.name)
+  if (!requestColumns.includes('implementerId')) {
+    db.exec('ALTER TABLE requests ADD COLUMN implementerId TEXT')
   }
 }
 

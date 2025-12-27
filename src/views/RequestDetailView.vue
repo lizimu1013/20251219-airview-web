@@ -3,12 +3,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import RequestStatusTag from '@/components/RequestStatusTag.vue'
+import { apiRequest } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useRequestsStore } from '@/stores/requests'
 import { canEditRequest, canReview, canViewRequest, isReviewerLike } from '@/utils/permissions'
 import { formatDate, formatDateTime } from '@/utils/time'
 import { formatUserLabel } from '@/utils/userLabel'
-import type { Priority, RequestStatus } from '@/types/domain'
+import type { Priority, RequestStatus, User } from '@/types/domain'
 import { getToken } from '@/utils/token'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 
@@ -36,6 +37,9 @@ const requesterName = computed(() =>
 )
 const reviewerName = computed(() =>
   formatUserLabel({ name: req.value?.reviewerName, username: req.value?.reviewerUsername }) || req.value?.reviewerId || '-',
+)
+const implementerName = computed(() =>
+  formatUserLabel({ name: req.value?.implementerName, username: req.value?.implementerUsername }) || req.value?.implementerId || '-',
 )
 
 const comments = computed(() => store.comments)
@@ -90,12 +94,14 @@ const statusDialog = reactive<{
   reason: string
   suspendUntil: string
   suspendCondition: string
+  implementerId: string
 }>({
   visible: false,
   toStatus: '',
   reason: '',
   suspendUntil: '',
   suspendCondition: '',
+  implementerId: '',
 })
 
 function openStatusDialog(toStatus: RequestStatus) {
@@ -104,6 +110,7 @@ function openStatusDialog(toStatus: RequestStatus) {
   statusDialog.reason = ''
   statusDialog.suspendUntil = ''
   statusDialog.suspendCondition = ''
+  statusDialog.implementerId = toStatus === 'Accepted' ? req.value?.implementerId ?? '' : ''
 }
 
 function statusTitle(status: RequestStatus) {
@@ -128,6 +135,11 @@ async function onConfirmStatus() {
   const toStatus = statusDialog.toStatus
   if (!toStatus) return
 
+  if (toStatus === 'Accepted' && !statusDialog.implementerId) {
+    ElMessage.error('请选择实施人')
+    return
+  }
+
   if (toStatus === 'Rejected' || toStatus === 'Suspended') {
     await ElMessageBox.confirm('该操作将产生审计记录且不可直接撤销，是否继续？', statusTitle(toStatus), {
       type: 'warning',
@@ -145,6 +157,7 @@ async function onConfirmStatus() {
         reason: statusDialog.reason,
         suspendUntil: statusDialog.suspendUntil || undefined,
         suspendCondition: statusDialog.suspendCondition || undefined,
+        implementerId: statusDialog.implementerId || undefined,
       })
     }
     ElMessage.success('已更新状态')
@@ -167,8 +180,13 @@ watch(id, () => {
   load().catch(() => undefined)
 })
 
+watch(reviewerLike, () => {
+  loadImplementerOptions().catch(() => undefined)
+})
+
 onMounted(() => {
   load().catch(() => undefined)
+  loadImplementerOptions().catch(() => undefined)
 })
 
 function canResubmitToReview() {
@@ -273,6 +291,19 @@ const reviewActions = computed(() => {
     close: s === 'Accepted',
   }
 })
+
+const implementerOptions = ref<{ label: string; value: string }[]>([])
+
+async function loadImplementerOptions() {
+  if (!reviewerLike.value) {
+    implementerOptions.value = []
+    return
+  }
+  const res = await apiRequest<{ users: Pick<User, 'id' | 'name' | 'username' | 'role'>[] }>('/api/users/options')
+  implementerOptions.value = res.users
+    .filter((u) => u.username !== 'admin')
+    .map((u) => ({ label: formatUserLabel(u), value: u.id }))
+}
 </script>
 
 <template>
@@ -351,6 +382,7 @@ const reviewActions = computed(() => {
         <el-descriptions :column="3" border>
           <el-descriptions-item label="提交者">{{ requesterName }}</el-descriptions-item>
           <el-descriptions-item label="评审者">{{ reviewerName }}</el-descriptions-item>
+          <el-descriptions-item label="实施人">{{ implementerName }}</el-descriptions-item>
           <el-descriptions-item label="优先级">
             <el-tag v-if="req.priority" effect="plain" size="small" :style="priorityStyle(req.priority)">
               {{ req.priority }}
@@ -520,6 +552,12 @@ const reviewActions = computed(() => {
         <el-form label-position="top">
           <el-form-item :label="statusDialog.toStatus === 'NeedInfo' ? '需要补充的点（必填）' : '原因/处理意见（必填）'">
             <el-input v-model="statusDialog.reason" type="textarea" :rows="4" />
+          </el-form-item>
+
+          <el-form-item v-if="statusDialog.toStatus === 'Accepted'" label="实施人（可选）">
+            <el-select v-model="statusDialog.implementerId" placeholder="请选择实施人" clearable filterable>
+              <el-option v-for="o in implementerOptions" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
           </el-form-item>
 
           <template v-if="statusDialog.toStatus === 'Suspended'">

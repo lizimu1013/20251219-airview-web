@@ -108,6 +108,20 @@ const messageText = ref('')
 const messageAnonymous = ref(false)
 const pinningId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
+const loadingLeaderboard = ref(false)
+const leaderboardDays = ref(0)
+
+type LeaderboardRow = {
+  userId: string
+  name?: string
+  username?: string
+  count: number
+}
+
+const leaderboard = ref<{ submitters: LeaderboardRow[]; implementers: LeaderboardRow[] }>({
+  submitters: [],
+  implementers: [],
+})
 
 async function loadSummary() {
   const res = await apiRequest<{ counts: typeof reqsStore.summary }>('/api/dashboard/summary')
@@ -138,6 +152,23 @@ async function loadMessages() {
     messages.value = res.messages ?? []
   } finally {
     loadingMessages.value = false
+  }
+}
+
+async function loadLeaderboard() {
+  loadingLeaderboard.value = true
+  try {
+    const search = new URLSearchParams()
+    if (leaderboardDays.value > 0) search.set('days', String(leaderboardDays.value))
+    const res = await apiRequest<{ submitters: LeaderboardRow[]; implementers: LeaderboardRow[] }>(
+      `/api/dashboard/leaderboard${search.toString() ? `?${search.toString()}` : ''}`,
+    )
+    leaderboard.value = {
+      submitters: res.submitters ?? [],
+      implementers: res.implementers ?? [],
+    }
+  } finally {
+    loadingLeaderboard.value = false
   }
 }
 
@@ -207,6 +238,7 @@ async function deleteMessage(message: BoardMessage) {
 onMounted(() => {
   loadSummary().catch(() => undefined)
   loadTrend().catch(() => undefined)
+  loadLeaderboard().catch(() => undefined)
   loadMessages().catch(() => undefined)
 })
 </script>
@@ -250,6 +282,56 @@ onMounted(() => {
           <el-skeleton v-if="loadingTrend" animated :rows="5" />
           <OverviewLineChart v-else-if="hasTrend" :key="trendChartKey" :labels="trendLabels" :series="trendSeries" :height="320" />
           <el-empty v-else description="暂无数据" />
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="12" style="margin-top: 12px">
+      <el-col :xs="24">
+        <el-card>
+          <template #header>
+            <div class="app-card-header">
+              <div>排行榜</div>
+              <el-select v-model="leaderboardDays" size="small" style="width: 140px" @change="loadLeaderboard">
+                <el-option label="全部" :value="0" />
+                <el-option label="近 30 天" :value="30" />
+              </el-select>
+            </div>
+          </template>
+          <el-skeleton v-if="loadingLeaderboard" animated :rows="6" />
+          <el-row v-else :gutter="12">
+            <el-col :xs="24" :md="12">
+              <div class="leaderboard-title">需求提交排行榜</div>
+              <el-empty v-if="!leaderboard.submitters.length" description="暂无数据" />
+              <el-table v-else :data="leaderboard.submitters" size="small" style="width: 100%">
+                <el-table-column label="排名" width="70">
+                  <template #default="{ $index }">{{ $index + 1 }}</template>
+                </el-table-column>
+                <el-table-column label="人员">
+                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
+                </el-table-column>
+                <el-table-column label="提交数" width="90">
+                  <template #default="{ row }">{{ row.count }}</template>
+                </el-table-column>
+              </el-table>
+            </el-col>
+
+            <el-col :xs="24" :md="12">
+              <div class="leaderboard-title">需求实施排行榜</div>
+              <el-empty v-if="!leaderboard.implementers.length" description="暂无数据" />
+              <el-table v-else :data="leaderboard.implementers" size="small" style="width: 100%">
+                <el-table-column label="排名" width="70">
+                  <template #default="{ $index }">{{ $index + 1 }}</template>
+                </el-table-column>
+                <el-table-column label="人员">
+                  <template #default="{ row }">{{ formatUserLabel(row) || '-' }}</template>
+                </el-table-column>
+                <el-table-column label="实施数" width="90">
+                  <template #default="{ row }">{{ row.count }}</template>
+                </el-table-column>
+              </el-table>
+            </el-col>
+          </el-row>
         </el-card>
       </el-col>
     </el-row>
@@ -407,6 +489,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.leaderboard-title {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
 }
 .board {
   display: flex;

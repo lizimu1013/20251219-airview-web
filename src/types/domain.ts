@@ -39,6 +39,9 @@ export interface RequestItem {
   reviewerId?: string
   reviewerName?: string
   reviewerUsername?: string
+  implementerId?: string
+  implementerName?: string
+  implementerUsername?: string
   lastActorName?: string
   lastActorUsername?: string
   decisionReason?: string

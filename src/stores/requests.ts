@@ -127,7 +127,10 @@ export const useRequestsStore = defineStore('requests', () => {
     await fetchDetail(requestId)
   }
 
-  async function changeStatus(requestId: string, payload: { toStatus: RequestStatus; reason: string; suspendUntil?: string; suspendCondition?: string }) {
+  async function changeStatus(
+    requestId: string,
+    payload: { toStatus: RequestStatus; reason: string; suspendUntil?: string; suspendCondition?: string; implementerId?: string },
+  ) {
     await apiRequest<{ ok: true }>(`/api/requests/${requestId}/status`, { method: 'POST', body: payload })
     await fetchDetail(requestId)
   }

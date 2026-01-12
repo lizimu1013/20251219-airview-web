@@ -17,6 +17,7 @@ const router = createRouter({
         { path: 'requests/new', name: 'request-new', component: () => import('@/views/RequestFormView.vue') },
         { path: 'requests/:id', name: 'request-detail', component: () => import('@/views/RequestDetailView.vue') },
         { path: 'requests/:id/edit', name: 'request-edit', component: () => import('@/views/RequestFormView.vue') },
+        { path: 'ai-assistant', name: 'ai-assistant', component: () => import('@/views/AiAssistantRedirectView.vue') },
         {
           path: 'admin/users',
           name: 'admin-users',

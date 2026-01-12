@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import logoUrl from '@/assets/Snipaste_2025-12-22_21-40-14.png'
-import { DataAnalysis, House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
+import { ChatDotRound, DataAnalysis, House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatUserLabel } from '@/utils/userLabel'
 
@@ -14,6 +14,7 @@ const router = useRouter()
 const collapsed = ref(false)
 const activeMenu = computed(() => {
   if (route.path.startsWith('/requests')) return '/requests'
+  if (route.path.startsWith('/ai-assistant')) return '/ai-assistant'
   if (route.path.startsWith('/admin/visits')) return '/admin/visits'
   if (route.path.startsWith('/admin')) return '/admin/users'
   return route.path
@@ -50,6 +51,10 @@ function onLogout() {
         <el-menu-item index="/requests/new">
           <el-icon><Plus /></el-icon>
           <span>新建需求</span>
+        </el-menu-item>
+        <el-menu-item index="/ai-assistant">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>AI助手</span>
         </el-menu-item>
         <el-menu-item v-if="auth.user?.role === 'admin'" index="/admin/users">
           <el-icon><User /></el-icon>

@@ -419,10 +419,8 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="提交者" prop="requesterName" sortable="custom" width="220">
-          <template #default="{ row }">
-            {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
-          </template>
+        <el-table-column label="接口人" prop="contactPerson" sortable="custom" width="140">
+          <template #default="{ row }">{{ row.contactPerson ?? '-' }}</template>
         </el-table-column>
         <el-table-column label="实施人" prop="implementerName" sortable="custom" width="220">
           <template #default="{ row }">

@@ -993,8 +993,6 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   const description = String(body.description || '')
   const why = String(body.why || '')
   if (!title) return res.status(400).json({ message: 'title required' })
-  if (!description.trim()) return res.status(400).json({ message: 'description required' })
-  if (!why.trim()) return res.status(400).json({ message: 'why required' })
 
   const t = nowIso()
   let requestId = ''
@@ -1175,8 +1173,6 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   }
 
   if (patch.title === '') return res.status(400).json({ message: 'title required' })
-  if (patch.description != null && !String(patch.description).trim()) return res.status(400).json({ message: 'description required' })
-  if (patch.why != null && !String(patch.why).trim()) return res.status(400).json({ message: 'why required' })
 
   patch.updatedAt = nowIso()
 

@@ -67,8 +67,6 @@ watchEffect(() => {
 
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  description: [{ required: true, message: '请输入需求描述', trigger: 'blur' }],
-  why: [{ required: true, message: '请输入期望价值/收益（Why）', trigger: 'blur' }],
 }
 
 const tagOptions = ['AI RAN', 'CellFree', 'MIMO', '其他']
@@ -194,16 +192,18 @@ onMounted(() => {
                 <el-option label="缺陷" value="缺陷" />
                 <el-option label="性能" value="性能" />
                 <el-option label="咨询" value="咨询" />
+                <el-option label="AI" value="AI" />
+                <el-option label="精度" value="精度" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="优先级">
               <el-select v-model="form.priority" clearable placeholder="可选">
-                <el-option label="P0（天级出结果）" value="P0" />
-                <el-option label="P1（周级出结果）" value="P1" />
-                <el-option label="P2（月级出结果）" value="P2" />
-                <el-option label="P3（中长期能力规划）" value="P3" />
+                <el-option label="P0（重要紧急）" value="P0" />
+                <el-option label="P1（不重要紧急）" value="P1" />
+                <el-option label="P2（重要不紧急）" value="P2" />
+                <el-option label="P3（不重要不紧急）" value="P3" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -247,11 +247,11 @@ onMounted(() => {
           </el-col>
         </el-row>
 
-        <el-form-item label="需求描述" prop="description">
+        <el-form-item label="需求描述（可选）" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="8" placeholder="建议描述现状/目标/交互/边界" />
         </el-form-item>
 
-        <el-form-item label="期望价值/收益（Why）" prop="why">
+        <el-form-item label="期望价值/收益（可选）" prop="why">
           <el-input v-model="form.why" type="textarea" :rows="3" />
         </el-form-item>
 

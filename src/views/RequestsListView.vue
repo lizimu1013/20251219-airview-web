@@ -355,6 +355,8 @@ onMounted(() => {
             <el-option label="缺陷" value="缺陷" />
             <el-option label="咨询" value="咨询" />
             <el-option label="性能" value="性能" />
+            <el-option label="AI" value="AI" />
+            <el-option label="精度" value="精度" />
           </el-select>
         </el-form-item>
         <el-form-item label="标签">

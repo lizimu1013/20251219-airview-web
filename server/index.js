@@ -82,6 +82,39 @@ function generateRequestId(db, date = new Date()) {
   return `${stamp}_${String(nextSeq).padStart(3, '0')}`
 }
 
+function ensureRequestOptions(type) {
+  const count = db.prepare('SELECT COUNT(1) AS c FROM request_options WHERE type = ?').get(type)?.c ?? 0
+  if (count > 0) return
+  const insert = db.prepare('INSERT OR IGNORE INTO request_options (id, type, value, createdAt) VALUES (?, ?, ?, ?)')
+  const createdAt = nowIso()
+  if (type === 'domain') {
+    const rows = db
+      .prepare(`SELECT DISTINCT domain AS value FROM requests WHERE domain IS NOT NULL AND TRIM(domain) <> ''`)
+      .all()
+    for (const row of rows) {
+      insert.run(nanoid(), 'domain', String(row.value).trim(), createdAt)
+    }
+    return
+  }
+  if (type === 'tag') {
+    const rows = db.prepare("SELECT tagsJson FROM requests WHERE tagsJson IS NOT NULL AND tagsJson <> ''").all()
+    const tags = new Set()
+    for (const row of rows) {
+      const list = fromJson(row.tagsJson, [])
+      if (!Array.isArray(list)) continue
+      for (const tag of list) {
+        if (typeof tag !== 'string') continue
+        const value = tag.trim()
+        if (!value) continue
+        tags.add(value)
+      }
+    }
+    for (const value of tags) {
+      insert.run(nanoid(), 'tag', value, createdAt)
+    }
+  }
+}
+
 function jsonArray(value) {
   if (Array.isArray(value)) return value
   return []
@@ -528,27 +561,59 @@ app.get('/api/users/options', authMiddleware, requireRole(['reviewer', 'admin'])
 })
 
 app.get('/api/requests/options', authMiddleware, (_req, res) => {
+  ensureRequestOptions('domain')
+  ensureRequestOptions('tag')
   const domains = db
-    .prepare(`SELECT DISTINCT domain FROM requests WHERE domain IS NOT NULL AND TRIM(domain) <> '' ORDER BY domain`)
+    .prepare(`SELECT value FROM request_options WHERE type = 'domain' ORDER BY value ASC`)
     .all()
-    .map((row) => row.domain)
-    .filter(Boolean)
-
-  const tagsSet = new Set()
-  const tagRows = db.prepare(`SELECT tagsJson FROM requests WHERE tagsJson IS NOT NULL AND tagsJson <> ''`).all()
-  for (const row of tagRows) {
-    const tags = fromJson(row.tagsJson, [])
-    if (!Array.isArray(tags)) continue
-    for (const tag of tags) {
-      if (typeof tag !== 'string') continue
-      const value = tag.trim()
-      if (!value) continue
-      tagsSet.add(value)
-    }
-  }
-  const tags = Array.from(tagsSet).sort((a, b) => a.localeCompare(b))
-
+    .map((row) => row.value)
+  const tags = db
+    .prepare(`SELECT value FROM request_options WHERE type = 'tag' ORDER BY value ASC`)
+    .all()
+    .map((row) => row.value)
   return res.json({ domains, tags })
+})
+
+app.get('/api/admin/request-options', authMiddleware, requireRole(['admin']), (req, res) => {
+  const type = String(req.query.type || '').trim()
+  if (!['domain', 'tag'].includes(type)) return res.status(400).json({ message: 'invalid type' })
+  ensureRequestOptions(type)
+  const options = db
+    .prepare('SELECT id, type, value, createdAt FROM request_options WHERE type = ? ORDER BY value ASC')
+    .all(type)
+  return res.json({ options })
+})
+
+app.post('/api/admin/request-options', authMiddleware, requireRole(['admin']), (req, res) => {
+  const type = String(req.body?.type || '').trim()
+  const value = String(req.body?.value || '').trim()
+  if (!['domain', 'tag'].includes(type)) return res.status(400).json({ message: 'invalid type' })
+  if (!value) return res.status(400).json({ message: 'value required' })
+  const exists = db.prepare('SELECT id FROM request_options WHERE type = ? AND value = ?').get(type, value)
+  if (exists) return res.status(400).json({ message: 'value exists' })
+  const option = { id: nanoid(), type, value, createdAt: nowIso() }
+  db.prepare('INSERT INTO request_options (id, type, value, createdAt) VALUES (@id, @type, @value, @createdAt)').run(option)
+  return res.json({ option })
+})
+
+app.patch('/api/admin/request-options/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+  const id = req.params.id
+  const row = db.prepare('SELECT id, type FROM request_options WHERE id = ?').get(id)
+  if (!row) return res.status(404).json({ message: 'not found' })
+  const value = String(req.body?.value || '').trim()
+  if (!value) return res.status(400).json({ message: 'value required' })
+  const exists = db
+    .prepare('SELECT id FROM request_options WHERE type = ? AND value = ? AND id <> ?')
+    .get(row.type, value, id)
+  if (exists) return res.status(400).json({ message: 'value exists' })
+  db.prepare('UPDATE request_options SET value = ? WHERE id = ?').run(value, id)
+  return res.json({ ok: true })
+})
+
+app.delete('/api/admin/request-options/:id', authMiddleware, requireRole(['admin']), (req, res) => {
+  const id = req.params.id
+  db.prepare('DELETE FROM request_options WHERE id = ?').run(id)
+  return res.json({ ok: true })
 })
 
 app.post('/api/users', authMiddleware, requireRole(['admin']), (req, res) => {

@@ -30,6 +30,12 @@ const router = createRouter({
           component: () => import('@/views/AdminVisitsView.vue'),
           meta: { roles: ['admin'] satisfies Role[] },
         },
+        {
+          path: 'admin/request-options',
+          name: 'admin-request-options',
+          component: () => import('@/views/AdminRequestOptionsView.vue'),
+          meta: { roles: ['admin'] satisfies Role[] },
+        },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import logoUrl from '@/assets/Snipaste_2025-12-22_21-40-14.png'
-import { ChatDotRound, DataAnalysis, House, List, Plus, SwitchButton, User } from '@element-plus/icons-vue'
+import { ChatDotRound, DataAnalysis, House, List, Plus, Setting, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatUserLabel } from '@/utils/userLabel'
 
@@ -16,6 +16,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/requests')) return '/requests'
   if (route.path.startsWith('/ai-assistant')) return '/ai-assistant'
   if (route.path.startsWith('/admin/visits')) return '/admin/visits'
+  if (route.path.startsWith('/admin/request-options')) return '/admin/request-options'
   if (route.path.startsWith('/admin')) return '/admin/users'
   return route.path
 })
@@ -64,6 +65,10 @@ function onLogout() {
           <el-icon><DataAnalysis /></el-icon>
           <span>访问量统计</span>
         </el-menu-item>
+        <el-menu-item v-if="auth.user?.role === 'admin'" index="/admin/request-options">
+          <el-icon><Setting /></el-icon>
+          <span>标签/领域</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -80,6 +85,7 @@ function onLogout() {
               <el-breadcrumb-item v-else-if="route.path.startsWith('/requests')">需求</el-breadcrumb-item>
               <el-breadcrumb-item v-else-if="route.name === 'admin-users'">用户管理</el-breadcrumb-item>
               <el-breadcrumb-item v-else-if="route.name === 'admin-visits'">访问量统计</el-breadcrumb-item>
+              <el-breadcrumb-item v-else-if="route.name === 'admin-request-options'">标签/领域</el-breadcrumb-item>
             </el-breadcrumb>
           </div>
         </div>

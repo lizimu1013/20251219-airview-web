@@ -56,6 +56,13 @@ export function migrate(db) {
       FOREIGN KEY (implementerId) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS request_options (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL CHECK (type IN ('domain','tag')),
+      value TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS comments (
       id TEXT PRIMARY KEY,
       requestId TEXT NOT NULL,
@@ -124,6 +131,7 @@ export function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
     CREATE INDEX IF NOT EXISTS idx_requests_requester ON requests(requesterId);
     CREATE INDEX IF NOT EXISTS idx_requests_updatedAt ON requests(updatedAt);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_request_options_unique ON request_options(type, value);
     CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(requestId);
     CREATE INDEX IF NOT EXISTS idx_audit_request ON audit_logs(requestId);
     CREATE INDEX IF NOT EXISTS idx_attachments_request ON attachments(requestId);

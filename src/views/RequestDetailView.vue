@@ -404,27 +404,58 @@ async function loadImplementerOptions() {
           </div>
         </template>
 
-        <el-descriptions :column="3" border>
-          <el-descriptions-item label="提交者">{{ requesterName }}</el-descriptions-item>
-          <el-descriptions-item label="评审者">{{ reviewerName }}</el-descriptions-item>
-          <el-descriptions-item label="实施人">{{ implementerName }}</el-descriptions-item>
-          <el-descriptions-item label="优先级">
-            <el-tag v-if="req.priority" effect="plain" size="small" :style="priorityStyle(req.priority)">
-              {{ req.priority }}
-            </el-tag>
-            <span v-else class="text-muted">-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="分类">{{ req.category ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="标签">
-            <el-space wrap>
-              <el-tag v-for="t in req.tags" :key="t" type="info" effect="plain">{{ t }}</el-tag>
-              <span v-if="!req.tags?.length" class="text-muted">-</span>
-            </el-space>
-          </el-descriptions-item>
-          <el-descriptions-item label="挂起复审时间">
-            {{ req.suspendUntil ? formatDate(req.suspendUntil) : '-' }}
-          </el-descriptions-item>
-        </el-descriptions>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">提交者</div>
+            <div class="info-value">{{ requesterName }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">评审者</div>
+            <div class="info-value">{{ reviewerName }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">实施人</div>
+            <div class="info-value">{{ implementerName }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">优先级</div>
+            <div class="info-value">
+              <el-tag v-if="req.priority" effect="plain" size="small" :style="priorityStyle(req.priority)">
+                {{ req.priority }}
+              </el-tag>
+              <span v-else class="text-muted">-</span>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">分类</div>
+            <div class="info-value">{{ req.category ?? '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">领域</div>
+            <div class="info-value">{{ req.domain ?? '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">接口人</div>
+            <div class="info-value">{{ req.contactPerson ?? '-' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">交付模式</div>
+            <div class="info-value">{{ req.deliveryMode ?? '-' }}</div>
+          </div>
+          <div class="info-item info-span-2">
+            <div class="info-label">标签</div>
+            <div class="info-value">
+              <el-space wrap>
+                <el-tag v-for="t in req.tags" :key="t" type="info" effect="plain">{{ t }}</el-tag>
+                <span v-if="!req.tags?.length" class="text-muted">-</span>
+              </el-space>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">挂起复审时间</div>
+            <div class="info-value">{{ req.suspendUntil ? formatDate(req.suspendUntil) : '-' }}</div>
+          </div>
+        </div>
 
         <el-card shadow="never" class="review-bar">
           <template #header>
@@ -445,49 +476,43 @@ async function loadImplementerOptions() {
 
         <el-divider />
 
-        <el-row :gutter="12">
-          <el-col :span="16">
-            <el-card shadow="never">
-              <template #header>
+        <el-row :gutter="12" class="detail-layout">
+          <el-col :span="16" :xs="24">
+            <el-card shadow="never" class="content-card">
+              <div class="section-block">
                 <div class="section-title">需求描述</div>
-              </template>
-              <div style="white-space: pre-wrap">{{ req.description }}</div>
-            </el-card>
-
-            <el-card shadow="never" style="margin-top: 12px">
-              <template #header>
+                <div class="section-body">{{ req.description?.trim() ? req.description : '-' }}</div>
+              </div>
+              <el-divider />
+              <div class="section-block">
                 <div class="section-title">Why（价值/收益）</div>
-              </template>
-              <div style="white-space: pre-wrap">{{ req.why }}</div>
-            </el-card>
-
-            <el-card v-if="req.acceptanceCriteria" shadow="never" style="margin-top: 12px">
-              <template #header>
+                <div class="section-body">{{ req.why?.trim() ? req.why : '-' }}</div>
+              </div>
+              <el-divider v-if="req.acceptanceCriteria" />
+              <div v-if="req.acceptanceCriteria" class="section-block">
                 <div class="section-title">验收标准</div>
-              </template>
-              <div style="white-space: pre-wrap">{{ req.acceptanceCriteria }}</div>
+                <div class="section-body">{{ req.acceptanceCriteria }}</div>
+              </div>
             </el-card>
           </el-col>
 
-          <el-col :span="8">
-            <el-card shadow="never">
-              <template #header>
+          <el-col :span="8" :xs="24">
+            <el-card shadow="never" class="side-card">
+              <div class="section-block">
                 <div class="section-title">相关链接</div>
-              </template>
-              <el-space direction="vertical" alignment="start" style="width: 100%">
-                <a v-for="l in req.links" :key="l" :href="l" target="_blank" rel="noreferrer">{{ l }}</a>
-                <div v-if="!req.links?.length" class="text-muted">-</div>
-              </el-space>
-            </el-card>
-
-            <el-card shadow="never" style="margin-top: 12px">
-              <template #header>
+                <el-space direction="vertical" alignment="start" style="width: 100%">
+                  <a v-for="l in req.links" :key="l" :href="l" target="_blank" rel="noreferrer">{{ l }}</a>
+                  <div v-if="!req.links?.length" class="text-muted">-</div>
+                </el-space>
+              </div>
+              <el-divider />
+              <div class="section-block">
                 <div class="section-title">影响范围</div>
-              </template>
-              <div style="white-space: pre-wrap">{{ req.impactScope ?? '-' }}</div>
+                <div class="section-body">{{ req.impactScope?.trim() ? req.impactScope : '-' }}</div>
+              </div>
             </el-card>
 
-            <el-card shadow="never" style="margin-top: 12px">
+            <el-card shadow="never" class="side-card" style="margin-top: 12px">
               <template #header>
                 <div class="app-card-header">
                   <div class="section-title">附件（≤200MB）</div>
@@ -639,6 +664,48 @@ async function loadImplementerOptions() {
 .section-title {
   font-weight: 700;
 }
+.section-body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+  padding: 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.info-label {
+  color: #909399;
+  font-size: 12px;
+}
+.info-value {
+  font-weight: 600;
+  word-break: break-word;
+}
+.info-span-2 {
+  grid-column: span 2;
+}
+.content-card {
+  height: 100%;
+}
+.side-card {
+  height: fit-content;
+}
+.detail-layout {
+  margin-top: 12px;
+}
+.section-block + .section-block {
+  margin-top: 4px;
+}
 .comment-author {
   font-weight: 700;
 }
@@ -670,5 +737,13 @@ async function loadImplementerOptions() {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  .info-span-2 {
+    grid-column: span 1;
+  }
 }
 </style>

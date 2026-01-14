@@ -36,6 +36,9 @@ export function migrate(db) {
       acceptanceCriteria TEXT,
       status TEXT NOT NULL CHECK (status IN ('Submitted','NeedInfo','Accepted','Suspended','Rejected','Closed')),
       category TEXT,
+      domain TEXT,
+      contactPerson TEXT,
+      deliveryMode TEXT,
       priority TEXT,
       tagsJson TEXT NOT NULL,
       linksJson TEXT NOT NULL,
@@ -139,6 +142,15 @@ export function migrate(db) {
   const requestColumns = db.prepare('PRAGMA table_info(requests)').all().map((col) => col.name)
   if (!requestColumns.includes('implementerId')) {
     db.exec('ALTER TABLE requests ADD COLUMN implementerId TEXT')
+  }
+  if (!requestColumns.includes('domain')) {
+    db.exec('ALTER TABLE requests ADD COLUMN domain TEXT')
+  }
+  if (!requestColumns.includes('contactPerson')) {
+    db.exec('ALTER TABLE requests ADD COLUMN contactPerson TEXT')
+  }
+  if (!requestColumns.includes('deliveryMode')) {
+    db.exec('ALTER TABLE requests ADD COLUMN deliveryMode TEXT')
   }
 }
 

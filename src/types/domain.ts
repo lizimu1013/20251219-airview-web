@@ -10,7 +10,7 @@ export type RequestStatus =
 
 export type Priority = 'P0' | 'P1' | 'P2' | 'P3'
 
-export type Category = '功能' | '优化' | '缺陷' | '性能' | '咨询'
+export type Category = '功能' | '优化' | '缺陷' | '性能' | '咨询' | 'AI' | '精度'
 
 export interface User {
   id: string
@@ -29,6 +29,9 @@ export interface RequestItem {
   acceptanceCriteria?: string
   status: RequestStatus
   category?: Category
+  domain?: string
+  contactPerson?: string
+  deliveryMode?: string
   priority?: Priority
   tags: string[]
   links: string[]

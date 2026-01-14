@@ -10,7 +10,18 @@ export type RequestsQuery = Partial<{
   category: Category
   tag: string
   requesterId: string
-  sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'
+  sortBy:
+    | 'domain'
+    | 'title'
+    | 'requesterName'
+    | 'implementerName'
+    | 'createdAt'
+    | 'lastActorName'
+    | 'updatedAt'
+    | 'status'
+    | 'priority'
+    | 'category'
+    | 'tags'
   sortOrder: 'asc' | 'desc'
   page: number
   pageSize: number
@@ -104,6 +115,9 @@ export const useRequestsStore = defineStore('requests', () => {
     why: string
     acceptanceCriteria?: string
     category?: Category
+    domain?: string
+    contactPerson?: string
+    deliveryMode?: string
     priority?: Priority
     tags?: string[]
     links?: string[]

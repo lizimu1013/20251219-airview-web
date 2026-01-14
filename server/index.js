@@ -209,6 +209,9 @@ function rowToRequest(row) {
     acceptanceCriteria: row.acceptanceCriteria ?? undefined,
     status: row.status,
     category: row.category ?? undefined,
+    domain: row.domain ?? undefined,
+    contactPerson: row.contactPerson ?? undefined,
+    deliveryMode: row.deliveryMode ?? undefined,
     priority: row.priority ?? undefined,
     tags: fromJson(row.tagsJson, []),
     links: fromJson(row.linksJson, []),
@@ -944,12 +947,19 @@ app.get('/api/requests', authMiddleware, (req, res) => {
   const offset = (page - 1) * pageSize
 
   const sortMap = {
+    domain: 'r.domain',
+    title: 'r.title',
+    requesterName: 'u1.name',
+    implementerName: 'u4.name',
     createdAt: 'r.createdAt',
+    lastActorName: 'u3.name',
     updatedAt: 'r.updatedAt',
     priority:
       "CASE r.priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 ELSE 9 END",
     status:
       "CASE r.status WHEN 'Submitted' THEN 0 WHEN 'NeedInfo' THEN 1 WHEN 'Accepted' THEN 2 WHEN 'Suspended' THEN 3 WHEN 'Rejected' THEN 4 WHEN 'Closed' THEN 5 ELSE 9 END",
+    category: 'r.category',
+    tags: 'r.tagsJson',
   }
   const sortBy = sortMap[sortByRaw] || 'r.createdAt'
   const sortOrder = sortOrderRaw === 'asc' ? 'ASC' : 'DESC'
@@ -993,8 +1003,6 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   const description = String(body.description || '')
   const why = String(body.why || '')
   if (!title) return res.status(400).json({ message: 'title required' })
-  if (!description.trim()) return res.status(400).json({ message: 'description required' })
-  if (!why.trim()) return res.status(400).json({ message: 'why required' })
 
   const t = nowIso()
   let requestId = ''
@@ -1010,6 +1018,9 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       acceptanceCriteria: body.acceptanceCriteria ? String(body.acceptanceCriteria) : null,
       status: 'Submitted',
       category: body.category ? String(body.category) : null,
+      domain: body.domain ? String(body.domain) : null,
+      contactPerson: body.contactPerson ? String(body.contactPerson) : null,
+      deliveryMode: body.deliveryMode ? String(body.deliveryMode) : null,
       priority: body.priority ? String(body.priority) : null,
       tagsJson: JSON.stringify(jsonArray(body.tags)),
       linksJson: JSON.stringify(jsonArray(body.links)),
@@ -1028,9 +1039,9 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       db.prepare(
         `
         INSERT INTO requests
-        (id,title,description,why,acceptanceCriteria,status,category,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,implementerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
+        (id,title,description,why,acceptanceCriteria,status,category,domain,contactPerson,deliveryMode,priority,tagsJson,linksJson,impactScope,requesterId,reviewerId,implementerId,decisionReason,suspendUntil,suspendCondition,createdAt,updatedAt)
         VALUES
-        (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@implementerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
+        (@id,@title,@description,@why,@acceptanceCriteria,@status,@category,@domain,@contactPerson,@deliveryMode,@priority,@tagsJson,@linksJson,@impactScope,@requesterId,@reviewerId,@implementerId,@decisionReason,@suspendUntil,@suspendCondition,@createdAt,@updatedAt)
       `,
       ).run(row)
       inserted = true
@@ -1152,6 +1163,9 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   if (body.why != null) patch.why = String(body.why)
   if (body.acceptanceCriteria != null) patch.acceptanceCriteria = String(body.acceptanceCriteria) || null
   if (body.category !== undefined) patch.category = body.category ? String(body.category) : null
+  if (body.domain !== undefined) patch.domain = body.domain ? String(body.domain) : null
+  if (body.contactPerson !== undefined) patch.contactPerson = body.contactPerson ? String(body.contactPerson) : null
+  if (body.deliveryMode !== undefined) patch.deliveryMode = body.deliveryMode ? String(body.deliveryMode) : null
   if (body.priority !== undefined) patch.priority = body.priority ? String(body.priority) : null
   if (body.tags !== undefined) patch.tagsJson = JSON.stringify(jsonArray(body.tags))
   if (body.links !== undefined) patch.linksJson = JSON.stringify(jsonArray(body.links))
@@ -1175,8 +1189,6 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   }
 
   if (patch.title === '') return res.status(400).json({ message: 'title required' })
-  if (patch.description != null && !String(patch.description).trim()) return res.status(400).json({ message: 'description required' })
-  if (patch.why != null && !String(patch.why).trim()) return res.status(400).json({ message: 'why required' })
 
   patch.updatedAt = nowIso()
 

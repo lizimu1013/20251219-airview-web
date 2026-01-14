@@ -83,8 +83,6 @@ function generateRequestId(db, date = new Date()) {
 }
 
 function ensureRequestOptions(type) {
-  const count = db.prepare('SELECT COUNT(1) AS c FROM request_options WHERE type = ?').get(type)?.c ?? 0
-  if (count > 0) return
   const insert = db.prepare('INSERT OR IGNORE INTO request_options (id, type, value, createdAt) VALUES (?, ?, ?, ?)')
   const createdAt = nowIso()
   if (type === 'domain') {
@@ -112,6 +110,62 @@ function ensureRequestOptions(type) {
     for (const value of tags) {
       insert.run(nanoid(), 'tag', value, createdAt)
     }
+  }
+}
+
+function normalizeOptionValue(value) {
+  const trimmed = String(value ?? '').trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeTagList(value) {
+  if (!Array.isArray(value)) return []
+  const tags = new Set()
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const trimmed = item.trim()
+    if (!trimmed) continue
+    tags.add(trimmed)
+  }
+  return [...tags]
+}
+
+function upsertRequestOption(type, value) {
+  const normalized = normalizeOptionValue(value)
+  if (!normalized) return
+  const exists = db.prepare('SELECT id FROM request_options WHERE type = ? AND value = ?').get(type, normalized)
+  if (exists) return
+  db.prepare('INSERT INTO request_options (id, type, value, createdAt) VALUES (?, ?, ?, ?)').run(
+    nanoid(),
+    type,
+    normalized,
+    nowIso(),
+  )
+}
+
+function updateRequestsForOptionChange(type, fromValue, toValue) {
+  if (!fromValue || !toValue || fromValue === toValue) return
+  if (type === 'domain') {
+    db.prepare('UPDATE requests SET domain = ? WHERE domain = ?').run(toValue, fromValue)
+    return
+  }
+  if (type !== 'tag') return
+  const escaped = String(fromValue).replaceAll('"', '')
+  const rows = db.prepare('SELECT id, tagsJson FROM requests WHERE tagsJson LIKE ?').all(`%\"${escaped}\"%`)
+  for (const row of rows) {
+    const list = fromJson(row.tagsJson, [])
+    if (!Array.isArray(list)) continue
+    let changed = false
+    const updated = list.map((tag) => {
+      if (tag === fromValue) {
+        changed = true
+        return toValue
+      }
+      return tag
+    })
+    if (!changed) continue
+    const normalized = normalizeTagList(updated)
+    db.prepare('UPDATE requests SET tagsJson = ? WHERE id = ?').run(JSON.stringify(normalized), row.id)
   }
 }
 
@@ -598,15 +652,16 @@ app.post('/api/admin/request-options', authMiddleware, requireRole(['admin']), (
 
 app.patch('/api/admin/request-options/:id', authMiddleware, requireRole(['admin']), (req, res) => {
   const id = req.params.id
-  const row = db.prepare('SELECT id, type FROM request_options WHERE id = ?').get(id)
+  const row = db.prepare('SELECT id, type, value FROM request_options WHERE id = ?').get(id)
   if (!row) return res.status(404).json({ message: 'not found' })
-  const value = String(req.body?.value || '').trim()
+  const value = normalizeOptionValue(req.body?.value)
   if (!value) return res.status(400).json({ message: 'value required' })
   const exists = db
     .prepare('SELECT id FROM request_options WHERE type = ? AND value = ? AND id <> ?')
     .get(row.type, value, id)
   if (exists) return res.status(400).json({ message: 'value exists' })
   db.prepare('UPDATE request_options SET value = ? WHERE id = ?').run(value, id)
+  updateRequestsForOptionChange(row.type, row.value, value)
   return res.json({ ok: true })
 })
 
@@ -1093,6 +1148,8 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   const why = String(body.why || '')
   if (!title) return res.status(400).json({ message: 'title required' })
 
+  const domainValue = normalizeOptionValue(body.domain)
+  const tagValues = normalizeTagList(body.tags)
   const t = nowIso()
   let requestId = ''
   let row = null
@@ -1107,11 +1164,11 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       acceptanceCriteria: body.acceptanceCriteria ? String(body.acceptanceCriteria) : null,
       status: 'Submitted',
       category: body.category ? String(body.category) : null,
-      domain: body.domain ? String(body.domain) : null,
+      domain: domainValue,
       contactPerson: body.contactPerson ? String(body.contactPerson) : null,
       deliveryMode: body.deliveryMode ? String(body.deliveryMode) : null,
       priority: body.priority ? String(body.priority) : null,
-      tagsJson: JSON.stringify(jsonArray(body.tags)),
+      tagsJson: JSON.stringify(tagValues),
       linksJson: JSON.stringify(jsonArray(body.links)),
       impactScope: body.impactScope ? String(body.impactScope) : null,
       requesterId: user.id,
@@ -1141,6 +1198,8 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   }
   if (!inserted || !row) return res.status(500).json({ message: 'create failed' })
 
+  upsertRequestOption('domain', domainValue)
+  for (const tag of tagValues) upsertRequestOption('tag', tag)
   addAudit({ requestId, actorId: user.id, actionType: 'create', toValue: { status: 'Submitted' } })
   return res.json({ id: requestId })
 })
@@ -1246,17 +1305,19 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
 
   const body = req.body || {}
   const patch = {}
+  const domainValue = body.domain !== undefined ? normalizeOptionValue(body.domain) : undefined
+  const tagValues = body.tags !== undefined ? normalizeTagList(body.tags) : undefined
 
   if (body.title != null) patch.title = String(body.title).trim()
   if (body.description != null) patch.description = String(body.description)
   if (body.why != null) patch.why = String(body.why)
   if (body.acceptanceCriteria != null) patch.acceptanceCriteria = String(body.acceptanceCriteria) || null
   if (body.category !== undefined) patch.category = body.category ? String(body.category) : null
-  if (body.domain !== undefined) patch.domain = body.domain ? String(body.domain) : null
+  if (body.domain !== undefined) patch.domain = domainValue
   if (body.contactPerson !== undefined) patch.contactPerson = body.contactPerson ? String(body.contactPerson) : null
   if (body.deliveryMode !== undefined) patch.deliveryMode = body.deliveryMode ? String(body.deliveryMode) : null
   if (body.priority !== undefined) patch.priority = body.priority ? String(body.priority) : null
-  if (body.tags !== undefined) patch.tagsJson = JSON.stringify(jsonArray(body.tags))
+  if (body.tags !== undefined) patch.tagsJson = JSON.stringify(tagValues)
   if (body.links !== undefined) patch.linksJson = JSON.stringify(jsonArray(body.links))
   if (body.impactScope !== undefined) patch.impactScope = body.impactScope ? String(body.impactScope) : null
   if (body.implementerId !== undefined) {
@@ -1286,6 +1347,10 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
 
   const setSql = fields.map((f) => `${f}=@${f}`).join(', ')
   db.prepare(`UPDATE requests SET ${setSql} WHERE id=@id`).run({ id, ...patch })
+  if (body.domain !== undefined) upsertRequestOption('domain', domainValue)
+  if (body.tags !== undefined && Array.isArray(tagValues)) {
+    for (const tag of tagValues) upsertRequestOption('tag', tag)
+  }
   const note = patch.createdAt ? '编辑需求字段（含提交时间）' : '编辑需求字段'
   addAudit({ requestId: id, actorId: user.id, actionType: 'edit', note, fromValue: { status: current.status }, toValue: { status: current.status } })
   return res.json({ ok: true })

@@ -75,7 +75,8 @@ const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
 }
 
-const tagOptions = ['AI RAN', 'CellFree', 'MIMO', '其他']
+const tagOptions = ref<string[]>([])
+const domainOptions = ref<string[]>([])
 
 const implementerOptions = ref<{ label: string; value: string }[]>([])
 
@@ -88,6 +89,12 @@ async function loadImplementerOptions() {
   implementerOptions.value = res.users
     .filter((u) => u.username !== 'admin')
     .map((u) => ({ label: formatUserLabel(u), value: u.id }))
+}
+
+async function loadRequestOptions() {
+  const res = await apiRequest<{ domains: string[]; tags: string[] }>('/api/requests/options')
+  domainOptions.value = res.domains ?? []
+  tagOptions.value = res.tags ?? []
 }
 
 function normalizeTags(tags: string[]) {
@@ -167,6 +174,7 @@ function onCancel() {
 }
 
 onMounted(() => {
+  loadRequestOptions().catch(() => undefined)
   if (!isEdit.value) return
   store.fetchDetail(id.value).catch(() => ElMessage.error('加载失败'))
   loadImplementerOptions().catch(() => ElMessage.error('加载实施人失败'))
@@ -218,7 +226,9 @@ onMounted(() => {
           </el-col>
           <el-col :span="8" :xs="24">
             <el-form-item label="领域（可选）">
-              <el-input v-model="form.domain" placeholder="例如：无线、工具部、终端" />
+              <el-select v-model="form.domain" filterable allow-create clearable placeholder="选择或输入领域">
+                <el-option v-for="d in domainOptions" :key="d" :label="d" :value="d" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>

@@ -527,6 +527,30 @@ app.get('/api/users/options', authMiddleware, requireRole(['reviewer', 'admin'])
   return res.json({ users })
 })
 
+app.get('/api/requests/options', authMiddleware, (_req, res) => {
+  const domains = db
+    .prepare(`SELECT DISTINCT domain FROM requests WHERE domain IS NOT NULL AND TRIM(domain) <> '' ORDER BY domain`)
+    .all()
+    .map((row) => row.domain)
+    .filter(Boolean)
+
+  const tagsSet = new Set()
+  const tagRows = db.prepare(`SELECT tagsJson FROM requests WHERE tagsJson IS NOT NULL AND tagsJson <> ''`).all()
+  for (const row of tagRows) {
+    const tags = fromJson(row.tagsJson, [])
+    if (!Array.isArray(tags)) continue
+    for (const tag of tags) {
+      if (typeof tag !== 'string') continue
+      const value = tag.trim()
+      if (!value) continue
+      tagsSet.add(value)
+    }
+  }
+  const tags = Array.from(tagsSet).sort((a, b) => a.localeCompare(b))
+
+  return res.json({ domains, tags })
+})
+
 app.post('/api/users', authMiddleware, requireRole(['admin']), (req, res) => {
   const { username, name, role, password } = req.body || {}
   if (!username || !name || !role || !password) return res.status(400).json({ message: 'missing fields' })

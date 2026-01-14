@@ -415,6 +415,7 @@ async function loadImplementerOptions() {
             <span v-else class="text-muted">-</span>
           </el-descriptions-item>
           <el-descriptions-item label="分类">{{ req.category ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="领域">{{ req.domain ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="标签">
             <el-space wrap>
               <el-tag v-for="t in req.tags" :key="t" type="info" effect="plain">{{ t }}</el-tag>

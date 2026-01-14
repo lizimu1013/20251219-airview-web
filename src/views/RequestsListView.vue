@@ -52,15 +52,40 @@ function applyRouteFilters() {
 
 const requesterOptions = ref<{ label: string; value: string }[]>([])
 const implementerOptions = ref<{ label: string; value: string }[]>([])
-const sortState = reactive<{ sortBy: 'createdAt' | 'updatedAt' | 'priority' | 'status'; sortOrder: 'asc' | 'desc' }>({
+const sortState = reactive<{
+  sortBy:
+    | 'domain'
+    | 'title'
+    | 'requesterName'
+    | 'implementerName'
+    | 'createdAt'
+    | 'lastActorName'
+    | 'updatedAt'
+    | 'status'
+    | 'priority'
+    | 'category'
+    | 'tags'
+  sortOrder: 'asc' | 'desc'
+}>({
   sortBy: 'createdAt',
   sortOrder: 'desc',
 })
 
 function onSortChange(args: { prop: string; order: 'ascending' | 'descending' | null }) {
-  const sortBy = ['createdAt', 'updatedAt', 'priority', 'status'].includes(args.prop)
-    ? (args.prop as 'createdAt' | 'updatedAt' | 'priority' | 'status')
-    : 'createdAt'
+  const allowedSortBy = [
+    'domain',
+    'title',
+    'requesterName',
+    'implementerName',
+    'createdAt',
+    'lastActorName',
+    'updatedAt',
+    'status',
+    'priority',
+    'category',
+    'tags',
+  ]
+  const sortBy = allowedSortBy.includes(args.prop) ? (args.prop as (typeof allowedSortBy)[number]) : 'createdAt'
   const sortOrder = args.order === 'ascending' ? 'asc' : args.order === 'descending' ? 'desc' : 'desc'
   sortState.sortBy = sortBy
   sortState.sortOrder = sortOrder
@@ -381,7 +406,10 @@ onMounted(() => {
         @row-dblclick="onRowDblClick"
         @sort-change="onSortChange"
       >
-        <el-table-column label="标题" min-width="280">
+        <el-table-column label="领域" prop="domain" sortable="custom" width="120">
+          <template #default="{ row }">{{ row.domain ?? '-' }}</template>
+        </el-table-column>
+        <el-table-column label="标题" prop="title" sortable="custom" min-width="280">
           <template #default="{ row }">
             <div class="title-cell">
               <a class="title-link" @click.prevent="view(row.id)">{{ row.title }}</a>
@@ -391,12 +419,12 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="提交者" width="220">
+        <el-table-column label="提交者" prop="requesterName" sortable="custom" width="220">
           <template #default="{ row }">
             {{ formatUserLabel({ name: row.requesterName, username: row.requesterUsername }) || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="实施人" width="220">
+        <el-table-column label="实施人" prop="implementerName" sortable="custom" width="220">
           <template #default="{ row }">
             {{ formatUserLabel({ name: row.implementerName, username: row.implementerUsername }) || '-' }}
           </template>
@@ -404,7 +432,7 @@ onMounted(() => {
         <el-table-column label="创建时间" prop="createdAt" sortable="custom" width="150">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="最后修改人" width="220">
+        <el-table-column label="最后修改人" prop="lastActorName" sortable="custom" width="220">
           <template #default="{ row }">
             {{ formatUserLabel({ name: row.lastActorName, username: row.lastActorUsername }) || '-' }}
           </template>
@@ -423,10 +451,10 @@ onMounted(() => {
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="分类" width="90">
+        <el-table-column label="分类" prop="category" sortable="custom" width="90">
           <template #default="{ row }">{{ row.category ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="标签" min-width="180">
+        <el-table-column label="标签" prop="tags" sortable="custom" min-width="180">
           <template #default="{ row }">
             <el-space wrap>
               <el-tag v-for="t in row.tags" :key="t" type="info" effect="plain">{{ t }}</el-tag>

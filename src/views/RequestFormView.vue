@@ -32,6 +32,9 @@ const form = reactive({
   why: '',
   acceptanceCriteria: '',
   category: '' as Category | '',
+  domain: '',
+  contactPerson: '',
+  deliveryMode: '',
   priority: '' as Priority | '',
   tags: [] as string[],
   linksText: '',
@@ -57,6 +60,9 @@ watchEffect(() => {
   form.why = source.value.why
   form.acceptanceCriteria = source.value.acceptanceCriteria ?? ''
   form.category = (source.value.category ?? '') as Category | ''
+  form.domain = source.value.domain ?? ''
+  form.contactPerson = source.value.contactPerson ?? ''
+  form.deliveryMode = source.value.deliveryMode ?? ''
   form.priority = (source.value.priority ?? '') as Priority | ''
   form.tags = [...(source.value.tags ?? [])]
   form.linksText = (source.value.links ?? []).join('\n')
@@ -121,6 +127,9 @@ async function onSubmit() {
     why: form.why,
     acceptanceCriteria: form.acceptanceCriteria || undefined,
     category: (form.category || undefined) as Category | undefined,
+    domain: form.domain || undefined,
+    contactPerson: form.contactPerson || undefined,
+    deliveryMode: form.deliveryMode || undefined,
     priority: (form.priority || undefined) as Priority | undefined,
     tags: normalizeTags(form.tags),
     links: parseLinks(form.linksText),
@@ -184,7 +193,7 @@ onMounted(() => {
         </el-form-item>
 
         <el-row :gutter="12">
-          <el-col :span="6">
+          <el-col :span="8" :xs="24">
             <el-form-item label="分类">
               <el-select v-model="form.category" clearable placeholder="可选">
                 <el-option label="功能" value="功能" />
@@ -197,7 +206,7 @@ onMounted(() => {
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col :span="8" :xs="24">
             <el-form-item label="优先级">
               <el-select v-model="form.priority" clearable placeholder="可选">
                 <el-option label="P0（重要紧急）" value="P0" />
@@ -207,23 +216,40 @@ onMounted(() => {
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="标签（可选）">
-              <el-select
-                v-model="form.tags"
-                multiple
-                filterable
-                allow-create
-                default-first-option
-                clearable
-                placeholder="选择或输入标签"
-                style="width: 100%"
-              >
-                <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
-              </el-select>
+          <el-col :span="8" :xs="24">
+            <el-form-item label="领域（可选）">
+              <el-input v-model="form.domain" placeholder="例如：无线、工具部、终端" />
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-row :gutter="12">
+          <el-col :span="12" :xs="24">
+            <el-form-item label="接口人（可选）">
+              <el-input v-model="form.contactPerson" placeholder="对接人姓名或账号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12" :xs="24">
+            <el-form-item label="交付模式（可选）">
+              <el-input v-model="form.deliveryMode" placeholder="例如：仿真and业务合作建模/仿真组独立建模/业务组独立建模" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="标签（可选）">
+          <el-select
+            v-model="form.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            clearable
+            placeholder="选择或输入标签"
+            style="width: 100%"
+          >
+            <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
+          </el-select>
+        </el-form-item>
 
         <el-row v-if="isEdit && (isAdmin || reviewerLike)" :gutter="12">
           <el-col v-if="reviewerLike" :span="8">
@@ -247,13 +273,18 @@ onMounted(() => {
           </el-col>
         </el-row>
 
-        <el-form-item label="需求描述（可选）" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="8" placeholder="建议描述现状/目标/交互/边界" />
-        </el-form-item>
-
-        <el-form-item label="期望价值/收益（可选）" prop="why">
-          <el-input v-model="form.why" type="textarea" :rows="3" />
-        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="16" :xs="24">
+            <el-form-item label="需求描述（可选）" prop="description">
+              <el-input v-model="form.description" type="textarea" :rows="8" placeholder="建议描述现状/目标/交互/边界" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8" :xs="24">
+            <el-form-item label="期望价值/收益（可选）" prop="why">
+              <el-input v-model="form.why" type="textarea" :rows="8" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-form-item label="验收标准（可选）">
           <el-input v-model="form.acceptanceCriteria" type="textarea" :rows="4" />

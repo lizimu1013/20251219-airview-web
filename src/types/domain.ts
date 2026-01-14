@@ -29,6 +29,9 @@ export interface RequestItem {
   acceptanceCriteria?: string
   status: RequestStatus
   category?: Category
+  domain?: string
+  contactPerson?: string
+  deliveryMode?: string
   priority?: Priority
   tags: string[]
   links: string[]

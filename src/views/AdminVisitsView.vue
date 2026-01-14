@@ -29,10 +29,12 @@ const users = ref<VisitUserRow[]>([])
 const totalCount = computed(() => counts.value.reduce((sum, c) => sum + c, 0))
 const todayCount = computed(() => (counts.value.length ? counts.value[counts.value.length - 1] : 0))
 const rangeText = computed(() => {
-  if (days.value === 1) return '当日'
-  if (days.value === 7) return '一周'
+  if (days.value === 1) return '当天'
+  if (days.value === 3) return '3 天'
+  if (days.value === 7) return '7 天'
   if (days.value === 14) return '14 天'
   if (days.value === 30) return '30 天'
+  if (days.value === 365) return '一年'
   return `近 ${days.value} 天`
 })
 const rangeLabel = computed(() => {
@@ -98,10 +100,12 @@ onMounted(() => {
           <div>访问量统计</div>
           <el-space>
             <el-select v-model="days" size="small" style="width: 120px" @change="load">
-              <el-option label="当日" :value="1" />
-              <el-option label="一周" :value="7" />
+              <el-option label="当天" :value="1" />
+              <el-option label="近 3 天" :value="3" />
+              <el-option label="近 7 天" :value="7" />
               <el-option label="近 14 天" :value="14" />
               <el-option label="近 30 天" :value="30" />
+              <el-option label="近一年" :value="365" />
             </el-select>
             <el-button text size="small" @click="load">
               <el-icon><RefreshRight /></el-icon>

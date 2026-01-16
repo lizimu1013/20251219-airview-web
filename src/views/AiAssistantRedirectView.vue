@@ -2,7 +2,8 @@
 import { onMounted } from 'vue'
 
 onMounted(() => {
-  window.location.href = 'http://7.223.100.160:8080'
+  // Replace history so browser back doesn't land on this redirect route.
+  window.location.replace('http://7.223.100.160:8080')
 })
 </script>
 

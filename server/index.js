@@ -657,7 +657,28 @@ app.get('/api/requests/options', authMiddleware, (_req, res) => {
     .prepare(`SELECT value FROM request_options WHERE type = 'tag' ORDER BY value ASC`)
     .all()
     .map((row) => row.value)
-  return res.json({ domains, contacts, tags })
+  const requesters = db
+    .prepare(
+      `
+      SELECT DISTINCT u.id, u.name, u.username
+      FROM requests r
+      JOIN users u ON u.id = r.requesterId
+      ORDER BY u.name ASC, u.username ASC
+      `,
+    )
+    .all()
+  const implementers = db
+    .prepare(
+      `
+      SELECT DISTINCT u.id, u.name, u.username
+      FROM requests r
+      JOIN users u ON u.id = r.implementerId
+      WHERE r.implementerId IS NOT NULL
+      ORDER BY u.name ASC, u.username ASC
+      `,
+    )
+    .all()
+  return res.json({ domains, contacts, tags, requesters, implementers })
 })
 
 app.get('/api/admin/request-options', authMiddleware, requireRole(['admin']), (req, res) => {
@@ -1081,8 +1102,11 @@ app.get('/api/requests', authMiddleware, (req, res) => {
   const status = String(req.query.status || '').trim()
   const priority = String(req.query.priority || '').trim()
   const category = String(req.query.category || '').trim()
+  const domain = String(req.query.domain || '').trim()
+  const contactPerson = String(req.query.contactPerson || '').trim()
   const tag = String(req.query.tag || '').trim()
   const requesterId = String(req.query.requesterId || '').trim()
+  const implementerId = String(req.query.implementerId || '').trim()
   const sortByRaw = String(req.query.sortBy || '').trim()
   const sortOrderRaw = String(req.query.sortOrder || '').trim()
   const page = Math.max(1, Number(req.query.page || 1))
@@ -1109,9 +1133,21 @@ app.get('/api/requests', authMiddleware, (req, res) => {
     where.push('r.category=@category')
     params.category = category
   }
+  if (domain) {
+    where.push('r.domain=@domain')
+    params.domain = domain
+  }
+  if (contactPerson) {
+    where.push('r.contactPerson=@contactPerson')
+    params.contactPerson = contactPerson
+  }
   if (tag) {
     where.push('r.tagsJson LIKE @tagLike')
     params.tagLike = `%\"${tag.replaceAll('"', '')}\"%`
+  }
+  if (implementerId) {
+    where.push('r.implementerId=@implementerId')
+    params.implementerId = implementerId
   }
   if (q) {
     where.push('(r.title LIKE @q OR r.description LIKE @q)')

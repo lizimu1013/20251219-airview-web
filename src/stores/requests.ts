@@ -8,8 +8,11 @@ export type RequestsQuery = Partial<{
   status: RequestStatus
   priority: Priority
   category: Category
+  domain: string
+  contactPerson: string
   tag: string
   requesterId: string
+  implementerId: string
   sortBy:
     | 'domain'
     | 'title'
@@ -79,8 +82,11 @@ export const useRequestsStore = defineStore('requests', () => {
       if (query.status) search.set('status', query.status)
       if (query.priority) search.set('priority', query.priority)
       if (query.category) search.set('category', query.category)
+      if (query.domain) search.set('domain', query.domain)
+      if (query.contactPerson) search.set('contactPerson', query.contactPerson)
       if (query.tag) search.set('tag', query.tag)
       if (query.requesterId) search.set('requesterId', query.requesterId)
+      if (query.implementerId) search.set('implementerId', query.implementerId)
       if (query.sortBy) search.set('sortBy', query.sortBy)
       if (query.sortOrder) search.set('sortOrder', query.sortOrder)
       search.set('page', String(query.page ?? page.value))

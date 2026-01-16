@@ -25,15 +25,21 @@ const filters = reactive<{
   status: RequestStatus | ''
   priority: Priority | ''
   category: Category | ''
+  domain: string
+  contactPerson: string
   tag: string
   requesterId: string
+  implementerId: string
 }>({
   q: '',
   status: '',
   priority: '',
   category: '',
+  domain: '',
+  contactPerson: '',
   tag: '',
   requesterId: '',
+  implementerId: '',
 })
 
 const statusValues: RequestStatus[] = ['Submitted', 'NeedInfo', 'Accepted', 'Suspended', 'Rejected', 'Closed']
@@ -50,8 +56,11 @@ function applyRouteFilters() {
   suppressFilterWatch = false
 }
 
-const requesterOptions = ref<{ label: string; value: string }[]>([])
+const requesterFilterOptions = ref<{ label: string; value: string }[]>([])
+const implementerFilterOptions = ref<{ label: string; value: string }[]>([])
 const implementerOptions = ref<{ label: string; value: string }[]>([])
+const domainOptions = ref<string[]>([])
+const contactOptions = ref<string[]>([])
 const sortState = reactive<{
   sortBy:
     | 'domain'
@@ -92,18 +101,28 @@ function onSortChange(args: { prop: string; order: 'ascending' | 'descending' | 
   fetchListAt(1, pageSize.value).catch(() => undefined)
 }
 
-async function loadRequesterOptions() {
+async function loadUserOptions() {
   if (!reviewerLike.value) {
-    requesterOptions.value = []
     implementerOptions.value = []
     return
   }
   const res = await apiRequest<{ users: Pick<User, 'id' | 'name' | 'username' | 'role'>[] }>('/api/users/options')
-  const options = res.users.map((u) => ({ label: formatUserLabel(u), value: u.id }))
-  requesterOptions.value = options
   implementerOptions.value = res.users
     .filter((u) => u.username !== 'admin')
     .map((u) => ({ label: formatUserLabel(u), value: u.id }))
+}
+
+async function loadRequestOptions() {
+  const res = await apiRequest<{
+    domains: string[]
+    contacts: string[]
+    requesters: { id: string; name: string | null; username: string }[]
+    implementers: { id: string; name: string | null; username: string }[]
+  }>('/api/requests/options')
+  domainOptions.value = res.domains
+  contactOptions.value = res.contacts
+  requesterFilterOptions.value = res.requesters.map((u) => ({ label: formatUserLabel(u), value: u.id }))
+  implementerFilterOptions.value = res.implementers.map((u) => ({ label: formatUserLabel(u), value: u.id }))
 }
 
 const { list, total, page, pageSize, loadingList } = storeToRefs(store)
@@ -115,8 +134,11 @@ async function fetchList() {
     status: (filters.status || undefined) as RequestStatus | undefined,
     priority: (filters.priority || undefined) as Priority | undefined,
     category: (filters.category || undefined) as Category | undefined,
+    domain: filters.domain || undefined,
+    contactPerson: filters.contactPerson || undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    implementerId: reviewerLike.value ? filters.implementerId || undefined : undefined,
     sortBy: sortState.sortBy,
     sortOrder: sortState.sortOrder,
     page: page.value,
@@ -130,8 +152,11 @@ async function fetchListAt(p: number, ps: number) {
     status: (filters.status || undefined) as RequestStatus | undefined,
     priority: (filters.priority || undefined) as Priority | undefined,
     category: (filters.category || undefined) as Category | undefined,
+    domain: filters.domain || undefined,
+    contactPerson: filters.contactPerson || undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    implementerId: reviewerLike.value ? filters.implementerId || undefined : undefined,
     sortBy: sortState.sortBy,
     sortOrder: sortState.sortOrder,
     page: p,
@@ -145,8 +170,11 @@ async function fetchListFirstPage() {
     status: (filters.status || undefined) as RequestStatus | undefined,
     priority: (filters.priority || undefined) as Priority | undefined,
     category: (filters.category || undefined) as Category | undefined,
+    domain: filters.domain || undefined,
+    contactPerson: filters.contactPerson || undefined,
     tag: filters.tag || undefined,
     requesterId: reviewerLike.value ? filters.requesterId || undefined : undefined,
+    implementerId: reviewerLike.value ? filters.implementerId || undefined : undefined,
     sortBy: sortState.sortBy,
     sortOrder: sortState.sortOrder,
     page: 1,
@@ -159,8 +187,11 @@ function onReset() {
   filters.status = ''
   filters.priority = ''
   filters.category = ''
+  filters.domain = ''
+  filters.contactPerson = ''
   filters.tag = ''
   filters.requesterId = ''
+  filters.implementerId = ''
   sortState.sortBy = 'createdAt'
   sortState.sortOrder = 'desc'
   fetchListAt(1, pageSize.value).catch(() => undefined)
@@ -331,12 +362,13 @@ watch(
 )
 
 watch(reviewerLike, () => {
-  loadRequesterOptions().catch(() => undefined)
+  loadUserOptions().catch(() => undefined)
 })
 
 onMounted(() => {
   applyRouteFilters()
-  loadRequesterOptions().catch(() => undefined)
+  loadUserOptions().catch(() => undefined)
+  loadRequestOptions().catch(() => undefined)
   fetchList().catch(() => undefined)
 })
 </script>
@@ -384,12 +416,27 @@ onMounted(() => {
             <el-option label="精度" value="精度" />
           </el-select>
         </el-form-item>
+        <el-form-item label="领域">
+          <el-select v-model="filters.domain" clearable filterable style="width: 160px">
+            <el-option v-for="o in domainOptions" :key="o" :label="o" :value="o" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="接口人">
+          <el-select v-model="filters.contactPerson" clearable filterable style="width: 160px">
+            <el-option v-for="o in contactOptions" :key="o" :label="o" :value="o" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="标签">
           <el-input v-model="filters.tag" placeholder="精确匹配" clearable style="width: 160px" />
         </el-form-item>
         <el-form-item v-if="reviewerLike" label="提交者">
           <el-select v-model="filters.requesterId" clearable style="width: 180px">
-            <el-option v-for="o in requesterOptions" :key="o.value" :label="o.label" :value="o.value" />
+            <el-option v-for="o in requesterFilterOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="reviewerLike" label="实施人">
+          <el-select v-model="filters.implementerId" clearable style="width: 180px">
+            <el-option v-for="o in implementerFilterOptions" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
         </el-form-item>
         <el-form-item>

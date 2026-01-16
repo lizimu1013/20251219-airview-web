@@ -99,6 +99,22 @@ async function loadRequestOptions() {
   tagOptions.value = res.tags ?? []
 }
 
+function queryDomainOptions(queryString: string, cb: (items: { value: string }[]) => void) {
+  const query = queryString.trim().toLowerCase()
+  const items = (domainOptions.value || [])
+    .filter((value) => (query ? value.toLowerCase().includes(query) : true))
+    .map((value) => ({ value }))
+  cb(items)
+}
+
+function queryContactOptions(queryString: string, cb: (items: { value: string }[]) => void) {
+  const query = queryString.trim().toLowerCase()
+  const items = (contactOptions.value || [])
+    .filter((value) => (query ? value.toLowerCase().includes(query) : true))
+    .map((value) => ({ value }))
+  cb(items)
+}
+
 function normalizeTags(tags: string[]) {
   const seen = new Set<string>()
   const result: string[] = []
@@ -228,9 +244,12 @@ onMounted(() => {
           </el-col>
           <el-col :span="8" :xs="24">
             <el-form-item label="领域（可选）">
-              <el-select v-model="form.domain" filterable allow-create clearable placeholder="选择或输入领域">
-                <el-option v-for="d in domainOptions" :key="d" :label="d" :value="d" />
-              </el-select>
+              <el-autocomplete
+                v-model="form.domain"
+                :fetch-suggestions="queryDomainOptions"
+                clearable
+                placeholder="选择或输入领域"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -238,9 +257,12 @@ onMounted(() => {
         <el-row :gutter="12">
           <el-col :span="12" :xs="24">
             <el-form-item label="接口人（可选）">
-              <el-select v-model="form.contactPerson" filterable allow-create clearable placeholder="选择或输入接口人">
-                <el-option v-for="c in contactOptions" :key="c" :label="c" :value="c" />
-              </el-select>
+              <el-autocomplete
+                v-model="form.contactPerson"
+                :fetch-suggestions="queryContactOptions"
+                clearable
+                placeholder="选择或输入接口人"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12" :xs="24">

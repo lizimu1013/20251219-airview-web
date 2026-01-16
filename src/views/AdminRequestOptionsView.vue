@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiRequest } from '@/api/http'
 import { formatDateTime } from '@/utils/time'
 
-type OptionType = 'domain' | 'tag'
+type OptionType = 'domain' | 'tag' | 'contact'
 type OptionRow = { id: string; type: OptionType; value: string; createdAt: string }
 
 const activeTab = ref<OptionType>('domain')
@@ -14,7 +14,11 @@ const newValue = ref('')
 const editingId = ref('')
 const editingValue = ref('')
 
-const tabLabel = computed(() => (activeTab.value === 'domain' ? '领域' : '标签'))
+const tabLabel = computed(() => {
+  if (activeTab.value === 'domain') return '领域'
+  if (activeTab.value === 'contact') return '接口人'
+  return '标签'
+})
 
 async function load() {
   loading.value = true
@@ -92,12 +96,13 @@ watch(activeTab, () => {
     <el-card>
       <template #header>
         <div class="app-card-header">
-          <div>标签/领域管理</div>
+          <div>标签/领域/接口人管理</div>
         </div>
       </template>
 
       <el-tabs v-model="activeTab">
         <el-tab-pane label="领域" name="domain" />
+        <el-tab-pane label="接口人" name="contact" />
         <el-tab-pane label="标签" name="tag" />
       </el-tabs>
 

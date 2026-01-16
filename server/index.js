@@ -83,6 +83,12 @@ function generateRequestId(db, date = new Date()) {
 }
 
 function ensureRequestOptions(type) {
+  const existingValues = new Set(
+    db
+      .prepare('SELECT value FROM request_options WHERE type = ?')
+      .all(type)
+      .map((row) => row.value),
+  )
   const insert = db.prepare('INSERT OR IGNORE INTO request_options (id, type, value, createdAt) VALUES (?, ?, ?, ?)')
   const createdAt = nowIso()
   if (type === 'domain') {
@@ -90,7 +96,22 @@ function ensureRequestOptions(type) {
       .prepare(`SELECT DISTINCT domain AS value FROM requests WHERE domain IS NOT NULL AND TRIM(domain) <> ''`)
       .all()
     for (const row of rows) {
-      insert.run(nanoid(), 'domain', String(row.value).trim(), createdAt)
+      const value = String(row.value).trim()
+      if (!value || existingValues.has(value)) continue
+      insert.run(nanoid(), 'domain', value, createdAt)
+      existingValues.add(value)
+    }
+    return
+  }
+  if (type === 'contact') {
+    const rows = db
+      .prepare(`SELECT DISTINCT contactPerson AS value FROM requests WHERE contactPerson IS NOT NULL AND TRIM(contactPerson) <> ''`)
+      .all()
+    for (const row of rows) {
+      const value = String(row.value).trim()
+      if (!value || existingValues.has(value)) continue
+      insert.run(nanoid(), 'contact', value, createdAt)
+      existingValues.add(value)
     }
     return
   }
@@ -104,11 +125,13 @@ function ensureRequestOptions(type) {
         if (typeof tag !== 'string') continue
         const value = tag.trim()
         if (!value) continue
+        if (existingValues.has(value)) continue
         tags.add(value)
       }
     }
     for (const value of tags) {
       insert.run(nanoid(), 'tag', value, createdAt)
+      existingValues.add(value)
     }
   }
 }
@@ -147,6 +170,10 @@ function updateRequestsForOptionChange(type, fromValue, toValue) {
   if (!fromValue || !toValue || fromValue === toValue) return
   if (type === 'domain') {
     db.prepare('UPDATE requests SET domain = ? WHERE domain = ?').run(toValue, fromValue)
+    return
+  }
+  if (type === 'contact') {
+    db.prepare('UPDATE requests SET contactPerson = ? WHERE contactPerson = ?').run(toValue, fromValue)
     return
   }
   if (type !== 'tag') return
@@ -616,21 +643,26 @@ app.get('/api/users/options', authMiddleware, requireRole(['reviewer', 'admin'])
 
 app.get('/api/requests/options', authMiddleware, (_req, res) => {
   ensureRequestOptions('domain')
+  ensureRequestOptions('contact')
   ensureRequestOptions('tag')
   const domains = db
     .prepare(`SELECT value FROM request_options WHERE type = 'domain' ORDER BY value ASC`)
+    .all()
+    .map((row) => row.value)
+  const contacts = db
+    .prepare(`SELECT value FROM request_options WHERE type = 'contact' ORDER BY value ASC`)
     .all()
     .map((row) => row.value)
   const tags = db
     .prepare(`SELECT value FROM request_options WHERE type = 'tag' ORDER BY value ASC`)
     .all()
     .map((row) => row.value)
-  return res.json({ domains, tags })
+  return res.json({ domains, contacts, tags })
 })
 
 app.get('/api/admin/request-options', authMiddleware, requireRole(['admin']), (req, res) => {
   const type = String(req.query.type || '').trim()
-  if (!['domain', 'tag'].includes(type)) return res.status(400).json({ message: 'invalid type' })
+  if (!['domain', 'tag', 'contact'].includes(type)) return res.status(400).json({ message: 'invalid type' })
   ensureRequestOptions(type)
   const options = db
     .prepare('SELECT id, type, value, createdAt FROM request_options WHERE type = ? ORDER BY value ASC')
@@ -640,8 +672,8 @@ app.get('/api/admin/request-options', authMiddleware, requireRole(['admin']), (r
 
 app.post('/api/admin/request-options', authMiddleware, requireRole(['admin']), (req, res) => {
   const type = String(req.body?.type || '').trim()
-  const value = String(req.body?.value || '').trim()
-  if (!['domain', 'tag'].includes(type)) return res.status(400).json({ message: 'invalid type' })
+  const value = normalizeOptionValue(req.body?.value)
+  if (!['domain', 'tag', 'contact'].includes(type)) return res.status(400).json({ message: 'invalid type' })
   if (!value) return res.status(400).json({ message: 'value required' })
   const exists = db.prepare('SELECT id FROM request_options WHERE type = ? AND value = ?').get(type, value)
   if (exists) return res.status(400).json({ message: 'value exists' })
@@ -1149,6 +1181,7 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   if (!title) return res.status(400).json({ message: 'title required' })
 
   const domainValue = normalizeOptionValue(body.domain)
+  const contactValue = normalizeOptionValue(body.contactPerson)
   const tagValues = normalizeTagList(body.tags)
   const t = nowIso()
   let requestId = ''
@@ -1165,7 +1198,7 @@ app.post('/api/requests', authMiddleware, (req, res) => {
       status: 'Submitted',
       category: body.category ? String(body.category) : null,
       domain: domainValue,
-      contactPerson: body.contactPerson ? String(body.contactPerson) : null,
+      contactPerson: contactValue,
       deliveryMode: body.deliveryMode ? String(body.deliveryMode) : null,
       priority: body.priority ? String(body.priority) : null,
       tagsJson: JSON.stringify(tagValues),
@@ -1199,6 +1232,7 @@ app.post('/api/requests', authMiddleware, (req, res) => {
   if (!inserted || !row) return res.status(500).json({ message: 'create failed' })
 
   upsertRequestOption('domain', domainValue)
+  upsertRequestOption('contact', contactValue)
   for (const tag of tagValues) upsertRequestOption('tag', tag)
   addAudit({ requestId, actorId: user.id, actionType: 'create', toValue: { status: 'Submitted' } })
   return res.json({ id: requestId })
@@ -1306,6 +1340,7 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   const body = req.body || {}
   const patch = {}
   const domainValue = body.domain !== undefined ? normalizeOptionValue(body.domain) : undefined
+  const contactValue = body.contactPerson !== undefined ? normalizeOptionValue(body.contactPerson) : undefined
   const tagValues = body.tags !== undefined ? normalizeTagList(body.tags) : undefined
 
   if (body.title != null) patch.title = String(body.title).trim()
@@ -1314,7 +1349,7 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   if (body.acceptanceCriteria != null) patch.acceptanceCriteria = String(body.acceptanceCriteria) || null
   if (body.category !== undefined) patch.category = body.category ? String(body.category) : null
   if (body.domain !== undefined) patch.domain = domainValue
-  if (body.contactPerson !== undefined) patch.contactPerson = body.contactPerson ? String(body.contactPerson) : null
+  if (body.contactPerson !== undefined) patch.contactPerson = contactValue
   if (body.deliveryMode !== undefined) patch.deliveryMode = body.deliveryMode ? String(body.deliveryMode) : null
   if (body.priority !== undefined) patch.priority = body.priority ? String(body.priority) : null
   if (body.tags !== undefined) patch.tagsJson = JSON.stringify(tagValues)
@@ -1348,6 +1383,7 @@ app.patch('/api/requests/:id', authMiddleware, (req, res) => {
   const setSql = fields.map((f) => `${f}=@${f}`).join(', ')
   db.prepare(`UPDATE requests SET ${setSql} WHERE id=@id`).run({ id, ...patch })
   if (body.domain !== undefined) upsertRequestOption('domain', domainValue)
+  if (body.contactPerson !== undefined) upsertRequestOption('contact', contactValue)
   if (body.tags !== undefined && Array.isArray(tagValues)) {
     for (const tag of tagValues) upsertRequestOption('tag', tag)
   }

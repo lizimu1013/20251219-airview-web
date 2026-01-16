@@ -77,6 +77,7 @@ const rules = {
 
 const tagOptions = ref<string[]>([])
 const domainOptions = ref<string[]>([])
+const contactOptions = ref<string[]>([])
 
 const implementerOptions = ref<{ label: string; value: string }[]>([])
 
@@ -92,8 +93,9 @@ async function loadImplementerOptions() {
 }
 
 async function loadRequestOptions() {
-  const res = await apiRequest<{ domains: string[]; tags: string[] }>('/api/requests/options')
+  const res = await apiRequest<{ domains: string[]; contacts: string[]; tags: string[] }>('/api/requests/options')
   domainOptions.value = res.domains ?? []
+  contactOptions.value = res.contacts ?? []
   tagOptions.value = res.tags ?? []
 }
 
@@ -236,7 +238,9 @@ onMounted(() => {
         <el-row :gutter="12">
           <el-col :span="12" :xs="24">
             <el-form-item label="接口人（可选）">
-              <el-input v-model="form.contactPerson" placeholder="对接人姓名或账号" />
+              <el-select v-model="form.contactPerson" filterable allow-create clearable placeholder="选择或输入接口人">
+                <el-option v-for="c in contactOptions" :key="c" :label="c" :value="c" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12" :xs="24">

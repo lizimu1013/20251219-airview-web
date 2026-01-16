@@ -58,7 +58,7 @@ export function migrate(db) {
 
     CREATE TABLE IF NOT EXISTS request_options (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL CHECK (type IN ('domain','tag')),
+      type TEXT NOT NULL CHECK (type IN ('domain','tag','contact')),
       value TEXT NOT NULL,
       createdAt TEXT NOT NULL
     );
@@ -159,6 +159,24 @@ export function migrate(db) {
   }
   if (!requestColumns.includes('deliveryMode')) {
     db.exec('ALTER TABLE requests ADD COLUMN deliveryMode TEXT')
+  }
+
+  const requestOptionsSql = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'request_options'")
+    .get()?.sql
+  if (requestOptionsSql && !requestOptionsSql.includes("'contact'")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS request_options_new (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('domain','tag','contact')),
+        value TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+      INSERT INTO request_options_new (id, type, value, createdAt)
+      SELECT id, type, value, createdAt FROM request_options;
+      DROP TABLE request_options;
+      ALTER TABLE request_options_new RENAME TO request_options;
+    `)
   }
 }
 

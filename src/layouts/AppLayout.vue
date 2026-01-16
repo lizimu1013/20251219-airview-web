@@ -67,7 +67,7 @@ function onLogout() {
         </el-menu-item>
         <el-menu-item v-if="auth.user?.role === 'admin'" index="/admin/request-options">
           <el-icon><Setting /></el-icon>
-          <span>标签/领域</span>
+          <span>标签/领域/接口人</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -85,7 +85,7 @@ function onLogout() {
               <el-breadcrumb-item v-else-if="route.path.startsWith('/requests')">需求</el-breadcrumb-item>
               <el-breadcrumb-item v-else-if="route.name === 'admin-users'">用户管理</el-breadcrumb-item>
               <el-breadcrumb-item v-else-if="route.name === 'admin-visits'">访问量统计</el-breadcrumb-item>
-              <el-breadcrumb-item v-else-if="route.name === 'admin-request-options'">标签/领域</el-breadcrumb-item>
+              <el-breadcrumb-item v-else-if="route.name === 'admin-request-options'">标签/领域/接口人</el-breadcrumb-item>
             </el-breadcrumb>
           </div>
         </div>

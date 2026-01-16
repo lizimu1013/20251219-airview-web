@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import logoUrl from '@/assets/Snipaste_2025-12-22_21-40-14.png'
-import { ChatDotRound, DataAnalysis, House, List, Plus, Setting, SwitchButton, User } from '@element-plus/icons-vue'
+import { ChatDotRound, DataAnalysis, House, List, Plus, SwitchButton, User, Collection, Tickets, PriceTag } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatUserLabel } from '@/utils/userLabel'
 
@@ -66,7 +66,7 @@ function onLogout() {
           <span>访问量统计</span>
         </el-menu-item>
         <el-menu-item v-if="auth.user?.role === 'admin'" index="/admin/request-options">
-          <el-icon><Setting /></el-icon>
+          <el-icon><Collection /></el-icon>
           <span>标签/领域/接口人</span>
         </el-menu-item>
       </el-menu>

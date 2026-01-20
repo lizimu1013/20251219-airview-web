@@ -51,6 +51,11 @@ const SSO_STATE_COOKIE = 'urm_sso_state'
 const SSO_REDIRECT_URI = 'https://airview.rnd.huawei.com/authorize'
 const REDIRECT_URI = 'https://airview.rnd.huawei.com/authorize'
 const HUAEI_URI = 'https://airview.rnd.huawei.com'
+const OPEN_WEBUI_BASE_URL = process.env.OPEN_WEBUI_BASE_URL || 'http://7.223.100.160:8080'
+const OPEN_WEBUI_API_BASE_URL = process.env.OPEN_WEBUI_API_BASE_URL || `${OPEN_WEBUI_BASE_URL}/api/v1`
+const OPEN_WEBUI_TRUSTED_EMAIL_HEADER = process.env.OPEN_WEBUI_TRUSTED_EMAIL_HEADER || 'X-OpenWebUI-Email'
+const OPEN_WEBUI_TRUSTED_NAME_HEADER = process.env.OPEN_WEBUI_TRUSTED_NAME_HEADER || 'X-OpenWebUI-Name'
+const OPEN_WEBUI_EMAIL_DOMAIN = process.env.OPEN_WEBUI_EMAIL_DOMAIN || 'airview.local'
 
 function nowIso() {
   return new Date().toISOString()
@@ -295,6 +300,55 @@ async function postJson(url, payload) {
   return data
 }
 
+async function postJsonWithHeaders(url, payload, headers) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(payload),
+  })
+  const text = await res.text()
+  let data = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = null
+    }
+  }
+  if (!res.ok) {
+    const msg = data?.message || data?.detail || data?.error || text || res.statusText || 'request failed'
+    const error = new Error(msg)
+    error.status = res.status
+    error.payload = data
+    throw error
+  }
+  return data
+}
+
+function toOpenWebuiEmail(user) {
+  const raw = String(user?.username || '').trim()
+  if (!raw) return `user@${OPEN_WEBUI_EMAIL_DOMAIN}`
+  if (raw.includes('@')) return raw.toLowerCase()
+  return `${raw.toLowerCase()}@${OPEN_WEBUI_EMAIL_DOMAIN}`
+}
+
+function sanitizeOpenWebuiPath(pathname) {
+  const raw = typeof pathname === 'string' ? pathname.trim() : ''
+  if (!raw || !raw.startsWith('/')) return '/'
+  if (raw.startsWith('//') || raw.includes('://')) return '/'
+  return raw
+}
+
+async function requestOpenWebuiSession(user) {
+  const email = toOpenWebuiEmail(user)
+  const name = String(user?.name || user?.username || email).trim()
+  const headers = {
+    [OPEN_WEBUI_TRUSTED_EMAIL_HEADER]: email,
+  }
+  if (name) headers[OPEN_WEBUI_TRUSTED_NAME_HEADER] = encodeURIComponent(name)
+  return postJsonWithHeaders(`${OPEN_WEBUI_API_BASE_URL}/auths/signin`, { email, password: 'open-webui' }, headers)
+}
+
 function buildSsoHtml(token, redirectTo) {
   return `<!doctype html>
 <html lang="zh-CN">
@@ -479,6 +533,23 @@ function rowToAttachment(row) {
 }
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
+
+app.get('/api/openwebui/redirect', authMiddleware, async (req, res) => {
+  const user = getUserById(req.user.id) || req.user
+  const redirectPath = sanitizeOpenWebuiPath(req.query.redirect)
+  try {
+    const session = await requestOpenWebuiSession(user)
+    if (!session?.token) return res.status(502).json({ message: 'open-webui token missing' })
+    const url = `${OPEN_WEBUI_BASE_URL}/auth?redirect=${encodeURIComponent(redirectPath)}#token=${encodeURIComponent(
+      session.token,
+    )}`
+    return res.json({ url })
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('open-webui login failed', err)
+    return res.status(502).json({ message: 'open-webui login failed' })
+  }
+})
 
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {}

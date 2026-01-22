@@ -3,7 +3,7 @@ import { onMounted } from 'vue'
 
 onMounted(() => {
   // Replace history so browser back doesn't land on this redirect route.
-  window.location.replace('http://7.223.100.160:8080')
+  window.location.replace('https://ai.airview.rnd.huawei.com')
 })
 </script>
 
